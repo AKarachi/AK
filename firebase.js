@@ -14,11 +14,11 @@ const FIREBASE_SDK_APP = "https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 const FIREBASE_SDK_FS  = "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js";
 const EMPTY_DB = { clients: [], produits: [], magasins: [], commandes: [] };
 
-let _firestore  = null;
-let _docRef     = null;
-let _listeners  = [];
-let _ready      = false;
-let _localMode  = false;
+let _firestore   = null;
+let _docRef      = null;
+let _ready       = false;
+let _localMode   = false;
+let _pendingSubs = []; // callbacks waiting for Firebase to be ready
 
 function log(msg, error) {
   var prefix = "[firebase.js]";
@@ -54,23 +54,28 @@ var FirebaseDB = {
       }
       _ready = true;
       log("Firebase connected. Project: " + FIREBASE_CONFIG.projectId);
+
+      // Now attach any subscriptions that were waiting
+      _pendingSubs.forEach(function(cb) {
+        FirebaseDB._attachSnapshot(cb);
+      });
+      _pendingSubs = [];
+
     } catch (err) {
       log("Firebase init failed — switching to LOCAL mode.", err);
       _localMode = true;
       _ready = true;
+      // Notify pending subscribers with local data
+      _pendingSubs.forEach(function(cb) {
+        cb(FirebaseDB._loadLocal());
+      });
+      _pendingSubs = [];
     }
   },
 
-  subscribe: function(callback) {
-    _listeners.push(callback);
-    if (_localMode) {
-      callback(this._loadLocal());
-      return function() {
-        _listeners = _listeners.filter(function(l) { return l !== callback; });
-      };
-    }
+  _attachSnapshot: function(callback) {
     var self = this;
-    var unsub = _docRef.onSnapshot(
+    _docRef.onSnapshot(
       function(snap) {
         if (snap.exists) {
           var data = Object.assign({}, EMPTY_DB, snap.data());
@@ -83,10 +88,20 @@ var FirebaseDB = {
         callback(self._loadLocal());
       }
     );
-    return function() {
-      _listeners = _listeners.filter(function(l) { return l !== callback; });
-      unsub();
-    };
+  },
+
+  subscribe: function(callback) {
+    if (_ready && !_localMode && _docRef) {
+      // Firebase already ready — attach immediately
+      this._attachSnapshot(callback);
+    } else if (_ready && _localMode) {
+      // Already in local mode
+      callback(this._loadLocal());
+    } else {
+      // Firebase still initializing — queue the callback
+      _pendingSubs.push(callback);
+    }
+    return function() {}; // cleanup (optional)
   },
 
   save: async function(data) {
