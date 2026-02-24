@@ -1,12 +1,11 @@
 // ── FIREBASE CONFIG ──────────────────────────────────────────────────────────
-// 🔴 Remplace ces valeurs par les tiennes depuis Firebase Console
 const FIREBASE_CONFIG = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+  apiKey:            "AIzaSyDwxR-0k4M5L0SCLaIjliKYR7yXeGUf1YI",
+  authDomain:        "database-c6307.firebaseapp.com",
+  projectId:         "database-c6307",
+  storageBucket:     "database-c6307.firebasestorage.app",
+  messagingSenderId: "341076375686",
+  appId:             "1:341076375686:web:f346c9886b8323e4cb7907"
 };
 
 const DB_COLLECTION = "salesdb";
@@ -40,12 +39,6 @@ function loadScript(src) {
 var FirebaseDB = {
 
   init: async function() {
-    if (FIREBASE_CONFIG.apiKey === "YOUR_API_KEY") {
-      log("Running in LOCAL mode (localStorage).");
-      _localMode = true;
-      _ready = true;
-      return;
-    }
     try {
       await loadScript(FIREBASE_SDK_APP);
       await loadScript(FIREBASE_SDK_FS);
