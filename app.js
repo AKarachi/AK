@@ -87,6 +87,62 @@ function SearchDrop({value,onChange,results,onSelect,selected,onClear,placeholde
   );
 }
 
+
+// ── EDITABLE LIGNE ──────────────────────────────────────────────────────────
+// Double-click any cell to edit qty, prix, montant or note inline
+function EditableLigne({l,i,produits,db,setDb,cmdId,T}){
+  const [ed,setEd]=useState(null);
+  const [ev,setEv]=useState("");
+
+  function startEdit(field,val){setEd(field);setEv(val===null||val===undefined?"":String(val));}
+  function commit(field){
+    let val=field==="dnote"?(ev.trim()||null):ev?Number(ev):null;
+    setDb(p=>({...p,commandes:p.commandes.map(c=>{
+      if(c.id!==cmdId)return c;
+      const newLignes=c.lignes.map(x=>{
+        if(x.produitId!==l.produitId)return x;
+        const upd={...x,[field]:val};
+        // auto-calc amount
+        if(field==="qty"||field==="up"){
+          const q=field==="qty"?(val||1):x.qty;
+          const p=field==="up"?(val||0):(x.up||0);
+          if(q&&p)upd.amount=q*p;
+        }
+        return upd;
+      });
+      return {...c,lignes:newLignes};
+    })}));
+    setEd(null);
+    if(T)T("Ligne mise à jour ✓");
+  }
+
+  const CI={...IS,padding:"3px 6px",fontSize:"11px",width:"80px"};
+  function Cell({field,val,display,color,fw}){
+    return h('td',{
+      style:tbd({color:color||G.dim,fontWeight:fw||400,cursor:"pointer"}),
+      onDoubleClick:()=>startEdit(field,val),
+      title:"Double-clic pour modifier"
+    },
+      ed===field
+        ?h('input',{autoFocus:true,value:ev,type:field==="dnote"?"text":"number",
+            style:CI,
+            onChange:e=>setEv(e.target.value),
+            onBlur:()=>commit(field),
+            onKeyDown:e=>{if(e.key==="Enter")commit(field);if(e.key==="Escape")setEd(null);}
+          })
+        :display
+    );
+  }
+
+  return h('tr',{className:"trh",style:{borderBottom:"1px solid #141420"}},
+    h('td',{style:tbd({fontWeight:500})},pN(produits,l.produitId)),
+    h(Cell,{field:"qty",val:l.qty,display:l.qty,color:G.dim}),
+    h(Cell,{field:"up",val:l.up,display:l.up?l.up.toLocaleString():"—",color:G.mut}),
+    h(Cell,{field:"amount",val:l.amount,display:l.amount?l.amount.toLocaleString()+" GMD":"—",color:l.amount?G.te:"#333",fw:l.amount?700:400}),
+    h(Cell,{field:"dnote",val:l.dnote,display:l.dnote||"—",color:G.mut})
+  );
+}
+
 // ── APP ──────────────────────────────────────────────────────────────────────
 function App(){
   const [db,setDb]=useState(EMPTY);
@@ -177,13 +233,7 @@ function Home({db,setTab}){
             ["Produit","Qté","Prix","Montant","Note"].map(x=>h('th',{key:x,style:tbh},x))
           )),
           h('tbody',null,
-            ...c.lignes.map((l,i)=>h('tr',{key:i,className:"trh",style:{borderBottom:"1px solid #141420"}},
-              h('td',{style:tbd({fontWeight:500})},pN(produits,l.produitId)),
-              h('td',{style:tbd({color:G.dim})},l.qty),
-              h('td',{style:tbd({color:G.mut})},l.up?l.up.toLocaleString():"—"),
-              h('td',{style:tbd({color:l.amount?G.te:"#333",fontWeight:l.amount?700:400})},l.amount?l.amount.toLocaleString()+" GMD":"—"),
-              h('td',{style:tbd({color:G.mut})},l.dnote||"—")
-            )),
+            ...c.lignes.map((l,i)=>h(EditableLigne,{key:i,l,i,produits,db,setDb,cmdId:c.id,T})),
             h(TotalRow,{cols:5,label:"TOTAL",amount:tot})
           )
         )
@@ -296,8 +346,8 @@ function Cmds({db,setDb,T,setTab}){
     if(has)setNc(prev=>({...prev,lignes:prev.lignes.filter(l=>l.produitId!==p.id)}));
     else setNc(prev=>({...prev,lignes:[...prev.lignes,{produitId:p.id,qty:1,up:null,amount:null,dnote:null}]}));
   }
-  function updL(pid,f,v){setNc(prev=>({...prev,lignes:prev.lignes.map(l=>l.produitId===pid?{...l,[f]:f==="dnote"?(v||null):(v?Number(v):null)}:l)}));}
-  function updQ(pid,v){setNc(prev=>({...prev,lignes:prev.lignes.map(l=>l.produitId===pid?{...l,qty:Number(v)||1}:l)}));}
+  function updL(pid,f,v){setNc(prev=>({...prev,lignes:prev.lignes.map(l=>{if(l.produitId!==pid)return l;const upd={...l,[f]:f==="dnote"?(v||null):(v?Number(v):null)};if(f==="up"||f==="qty"){const q=f==="qty"?Number(v)||1:l.qty;const p=f==="up"?Number(v)||0:l.up||0;upd.amount=q&&p?q*p:upd.amount;}return upd;})}))}
+  function updQ(pid,v){setNc(prev=>({...prev,lignes:prev.lignes.map(l=>{if(l.produitId!==pid)return l;const q=Number(v)||1;const p=l.up||0;return{...l,qty:q,amount:q&&p?q*p:l.amount};})}))}
 
   const fClis=[...clients].filter(c=>c.nom.toLowerCase().includes(sCli.toLowerCase())).sort((a,b)=>a.nom.localeCompare(b.nom));
   const fPros=produits.filter(p=>p.nom.toLowerCase().includes(sPro.toLowerCase()));
@@ -327,13 +377,7 @@ function Cmds({db,setDb,T,setTab}){
             ["Produit","Qté","Prix","Montant","Note"].map(x=>h('th',{key:x,style:tbh},x))
           )),
           h('tbody',null,
-            ...c.lignes.map((l,i)=>h('tr',{key:i,className:"trh",style:{borderBottom:"1px solid #141420"}},
-              h('td',{style:tbd({fontWeight:500})},pN(produits,l.produitId)),
-              h('td',{style:tbd({color:G.dim})},l.qty),
-              h('td',{style:tbd({color:G.mut})},l.up?l.up.toLocaleString():"—"),
-              h('td',{style:tbd({color:l.amount?G.te:"#333",fontWeight:l.amount?700:400})},l.amount?l.amount.toLocaleString()+" GMD":"—"),
-              h('td',{style:tbd({color:G.mut})},l.dnote||"—")
-            )),
+            ...c.lignes.map((l,i)=>h(EditableLigne,{key:i,l,i,produits,db,setDb,cmdId:c.id,T})),
             h(TotalRow,{cols:5,label:"TOTAL",amount:tot})
           )
         )
@@ -900,6 +944,27 @@ function Pros({db,setDb,T}){
     )
   );
 }
+
+
+// ── PRINT CSS ─────────────────────────────────────────────────────────────────
+(function(){
+  const style=document.createElement('style');
+  style.textContent=`
+    @media print {
+      /* Hide sidebar, filters, action buttons */
+      nav, button, input, select, .no-print { display:none!important; }
+      /* Make main area full width */
+      body { background:#fff!important; color:#000!important; }
+      div[style*="width:195px"] { display:none!important; }
+      div[style*="width: 195px"] { display:none!important; }
+      /* Remove dark backgrounds */
+      * { background:transparent!important; border-color:#ccc!important; color:#000!important; }
+      table { width:100%!important; }
+      th, td { color:#000!important; border:1px solid #ccc!important; }
+    }
+  `;
+  document.head.appendChild(style);
+})();
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
 ReactDOM.createRoot(document.getElementById('root')).render(h(App,null));
