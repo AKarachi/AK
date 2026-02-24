@@ -92,7 +92,7 @@ function App(){
   const [db,setDb]=useState(EMPTY);
   const [tab,setTab]=useState("home");
   const [toast,setToast]=useState(null);
-  useEffect(()=>FirebaseDB.subscribe(setDb),[]);
+  useEffect(()=>{setTimeout(()=>FirebaseDB.subscribe(setDb),1500);},[]);
   useEffect(()=>{FirebaseDB.save(db);},[db]);
   function T(msg,err){setToast({msg,err});setTimeout(()=>setToast(null),2800);}
 
