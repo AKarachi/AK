@@ -89,10 +89,9 @@ function SearchDrop({value,onChange,results,onSelect,selected,onClear,placeholde
 
 // ── APP ──────────────────────────────────────────────────────────────────────
 function App(){
-  const [db,setDb]=useState(loadDb);
-  const [tab,setTab]=useState("home");
-  const [toast,setToast]=useState(null);
-  useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(db));}catch{}},[db]);
+ const [db,setDb]=useState(EMPTY);
+useEffect(()=>FirebaseDB.subscribe(setDb),[]);
+useEffect(()=>{FirebaseDB.save(db);},[db]);
   function T(msg,err){setToast({msg,err});setTimeout(()=>setToast(null),2800);}
 
   const tabs=[
