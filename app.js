@@ -676,7 +676,7 @@ function Mags({db,setDb,T}){
         h('div',{style:card({overflow:"hidden"})},
           h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
             h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
-              ["Date","Produit","Qté","Direction"].map(x=>h('th',{key:x,style:tbh},x))
+              ["Date","Produit","Qté","Direction",""].map(x=>h('th',{key:x,style:tbh},x))
             )),
             h('tbody',null,
               ...magTr.sort((a,b)=>b.date.localeCompare(a.date)).map((t,i)=>{
@@ -689,6 +689,9 @@ function Mags({db,setDb,T}){
                     sortant
                       ?h('span',{style:{color:G.re}},"↑ vers "+mN(magasins,t.versId))
                       :h('span',{style:{color:G.gr}},"↓ de "+mN(magasins,t.deId))
+                  ),
+                  h('td',{style:tbd()},
+                    h('button',{onClick:()=>{if(!confirm("Supprimer ce transfert ?"))return;setDb(p=>({...p,transferts:(p.transferts||[]).filter(x=>x.id!==t.id)}));T("Transfert supprimé ✓");},style:{background:"none",color:G.mut,border:`1px solid ${G.b1}`,padding:"3px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕")
                   )
                 );
               })
@@ -927,69 +930,99 @@ function Pros({db,setDb,T}){
   const [search,setSearch]=useState("");
   const [fMag,setFMag]=useState("");
   const [form,setForm]=useState(false);
-  // np.magTypes = { magasinId: "TRUCK"|"CONTAINER"|null }  (null = coché mais pas de type)
-  const [np,setNp]=useState({nom:"",cat:"",magTypes:{}});
+  const [editId,setEditId]=useState(null); // id du produit en cours de modification
+  // magTypes: { magasinId: {truck:bool, container:bool} }
+  const [np,setNp]=useState({nom:"",magTypes:{}});
   const [ed,setEd]=useState(null);
   const [ev,setEv]=useState("");
+
+  function initMagTypes(prod){
+    // Build magTypes from existing product's magasins + approvisionnements
+    const mt={};
+    (prod.magasins||[]).forEach(mid=>{
+      const approvs=(prod.approvisionnements||[]).filter(a=>a.magasinId===mid);
+      mt[mid]={
+        truck:approvs.some(a=>a.type==="TRUCK"),
+        container:approvs.some(a=>a.type==="CONTAINER")
+      };
+    });
+    return mt;
+  }
+
+  function openEdit(prod){
+    setNp({nom:prod.nom,magTypes:initMagTypes(prod)});
+    setEditId(prod.id);
+    setForm(false);
+  }
+  function openAdd(){setNp({nom:"",magTypes:{}});setEditId(null);setForm(true);}
 
   function toggleMag(magId){
     setNp(p=>{
       const mt={...p.magTypes};
-      if(mt[magId]!==undefined) delete mt[magId];
-      else mt[magId]="TRUCK";
+      if(mt[magId]) delete mt[magId];
+      else mt[magId]={truck:true,container:false};
       return{...p,magTypes:mt};
     });
   }
-  function setType(magId,type){
-    setNp(p=>({...p,magTypes:{...p.magTypes,[magId]:type}}));
+  function toggleType(magId,type){
+    setNp(p=>{
+      const cur=p.magTypes[magId]||{truck:false,container:false};
+      return{...p,magTypes:{...p.magTypes,[magId]:{...cur,[type]:!cur[type]}}};
+    });
   }
 
-  function add(){
-    if(!np.nom.trim())return T("Nom requis",true);
-    const selectedMags=Object.keys(np.magTypes).map(Number);
-    if(!selectedMags.length)return T("Cochez au moins un magasin",true);
-    const nomUp=np.nom.trim().toUpperCase();
-    const existing=produits.find(p=>p.nom===nomUp);
+  function buildApprovsFromMagTypes(magTypes){
     const date=new Date().toISOString().slice(0,10);
-    if(existing){
-      const newMags=[...(existing.magasins||[])];
-      const newApprov=[...(existing.approvisionnements||[])];
-      let added=0;
-      selectedMags.forEach(mid=>{
-        if(!newMags.includes(mid)){newMags.push(mid);added++;}
-        newApprov.push({magasinId:mid,type:np.magTypes[mid],date});
-      });
-      if(!added)return T("Ce produit existe déjà dans tous ces magasins",true);
-      setDb(p=>({...p,produits:p.produits.map(x=>x.id===existing.id?{...x,magasins:newMags,approvisionnements:newApprov}:x)}));
-      T(`Produit mis à jour dans ${added} magasin(s) !`);
+    const approv=[];
+    Object.entries(magTypes).forEach(([mid,types])=>{
+      if(types.truck) approv.push({magasinId:Number(mid),type:"TRUCK",date});
+      if(types.container) approv.push({magasinId:Number(mid),type:"CONTAINER",date});
+    });
+    return approv;
+  }
+
+  function save(){
+    if(!np.nom.trim())return T("Nom requis",true);
+    const selectedMags=Object.keys(np.magTypes).filter(k=>np.magTypes[k].truck||np.magTypes[k].container).map(Number);
+    if(!selectedMags.length)return T("Cochez au moins un magasin avec un type",true);
+    const nomUp=np.nom.trim().toUpperCase();
+    const approv=buildApprovsFromMagTypes(np.magTypes);
+
+    if(editId!==null){
+      // Update existing product
+      setDb(p=>({...p,produits:p.produits.map(x=>x.id===editId?{...x,nom:nomUp,magasins:selectedMags,approvisionnements:approv}:x)}));
+      T("Produit mis à jour !");
     } else {
+      // Create new — check name doesn't exist
+      const existing=produits.find(p=>p.nom===nomUp);
+      if(existing)return T("Un produit avec ce nom existe déjà. Cliquez sur ✏ pour le modifier.",true);
       const id=gid(produits);
-      const approv=selectedMags.map(mid=>({magasinId:mid,type:np.magTypes[mid],date}));
-      setDb(p=>({...p,produits:[...p.produits,{id,nom:nomUp,cat:np.cat.trim(),magasins:selectedMags,approvisionnements:approv}]}));
+      setDb(p=>({...p,produits:[...p.produits,{id,nom:nomUp,magasins:selectedMags,approvisionnements:approv}]}));
       T("Produit créé !");
     }
-    setNp({nom:"",cat:"",magTypes:{}});setForm(false);
+    setNp({nom:"",magTypes:{}});setForm(false);setEditId(null);
   }
+
   function del(id){
     if(commandes.some(c=>c.lignes.some(l=>l.produitId===id)))return T("Produit utilisé dans une commande",true);
     setDb(p=>({...p,produits:p.produits.filter(x=>x.id!==id)}));T("Supprimé");
   }
-  function commit(id,f){setDb(p=>({...p,produits:p.produits.map(x=>x.id===id?{...x,[f]:ev.trim().toUpperCase()}:x)}));setEd(null);}
-  function removeMag(prodId,magId){
-    setDb(p=>({...p,produits:p.produits.map(x=>x.id===prodId?{...x,magasins:(x.magasins||[]).filter(m=>m!==magId)}:x)}));
-    T("Magasin retiré du produit");
-  }
+  function commitNom(id){setDb(p=>({...p,produits:p.produits.map(x=>x.id===id?{...x,nom:ev.trim().toUpperCase()}:x)}));setEd(null);}
 
   const filtered=produits.filter(p=>{
     if(fMag&&!(p.magasins||[]).includes(Number(fMag)))return false;
-    if(search&&!p.nom.toLowerCase().includes(search.toLowerCase())&&!(p.cat||"").toLowerCase().includes(search.toLowerCase()))return false;
+    if(search&&!p.nom.toLowerCase().includes(search.toLowerCase()))return false;
     return true;
   });
 
-  const chk=(checked,onChange,label)=>h('label',{style:{display:"flex",alignItems:"center",gap:"6px",cursor:"pointer",userSelect:"none"}},
-    h('input',{type:"checkbox",checked,onChange,style:{width:"14px",height:"14px",accentColor:G.ac}}),
+  const chk=(checked,onChange,label,color)=>h('label',{style:{display:"flex",alignItems:"center",gap:"6px",cursor:"pointer",userSelect:"none"}},
+    h('input',{type:"checkbox",checked,onChange,style:{width:"14px",height:"14px",accentColor:color||G.ac}}),
     h('span',{style:{fontSize:"12px",color:G.txt}},label)
   );
+
+  // Shared form UI (add + edit)
+  const showForm=form||editId!==null;
+  const formTitle=editId!==null?"✏ MODIFIER PRODUIT":"NOUVEAU PRODUIT";
 
   return h('div',{className:"fu"},
     h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"16px",flexWrap:"wrap",gap:"9px"}},
@@ -997,35 +1030,30 @@ function Pros({db,setDb,T}){
         h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},"Produits"),
         h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${produits.length} produit(s)`)
       ),
-      h('button',{onClick:()=>setForm(v=>!v),style:btn(G.ac,"#fff")},"+ Ajouter")
+      h('button',{onClick:openAdd,style:btn(G.ac,"#fff")},"+ Ajouter")
     ),
 
-    // Add form
-    form?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"14px"}),border:`1px solid ${G.ac}`}},
-      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},"NOUVEAU PRODUIT"),
-      // Nom + Cat
-      h('div',{style:{display:"grid",gridTemplateColumns:"2fr 1fr",gap:"8px",marginBottom:"14px"}},
-        h(Lbl,{label:"Nom du produit *"},h(Inp,{value:np.nom,onChange:e=>setNp(p=>({...p,nom:e.target.value})),placeholder:"Ex: RICE 50KG"})),
-        h(Lbl,{label:"Catégorie"},h(Inp,{value:np.cat,onChange:e=>setNp(p=>({...p,cat:e.target.value})),placeholder:"Ex: Céréales"}))
+    // Form (add or edit)
+    showForm?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"14px"}),border:`1px solid ${G.ac}`}},
+      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},formTitle),
+      h(Lbl,{label:"Nom du produit *",style:{marginBottom:"14px"}},
+        h(Inp,{value:np.nom,onChange:e=>setNp(p=>({...p,nom:e.target.value})),placeholder:"Ex: RICE 50KG"})
       ),
-      // Magasins checkboxes with type per warehouse
-      h(Lbl,{label:"Magasins & type d'approvisionnement *"},
+      h(Lbl,{label:"Magasins & approvisionnements *"},
         magasins.length===0
-          ?h('div',{style:{color:G.mut,fontSize:"12px"}},"Aucun magasin créé.")
-          :h('div',{style:{display:"flex",flexDirection:"column",gap:"8px",marginTop:"4px"}},
+          ?h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"4px"}},"Aucun magasin créé.")
+          :h('div',{style:{display:"flex",flexDirection:"column",gap:"8px",marginTop:"6px"}},
             ...magasins.map(m=>{
-              const checked=np.magTypes[m.id]!==undefined;
-              const type=np.magTypes[m.id]||"TRUCK";
-              return h('div',{key:m.id,style:{background:G.d2,borderRadius:"7px",padding:"9px 12px",border:`1px solid ${checked?G.acBd:G.b1}`}},
-                h('div',{style:{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px"}},
+              const entry=np.magTypes[m.id];
+              const checked=!!entry;
+              const truck=entry?.truck||false;
+              const container=entry?.container||false;
+              return h('div',{key:m.id,style:{background:G.d2,borderRadius:"8px",padding:"10px 13px",border:`1px solid ${checked?G.acBd:G.b1}`,transition:"border .15s"}},
+                h('div',{style:{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"10px"}},
                   chk(checked,()=>toggleMag(m.id),"🏪 "+m.nom),
-                  checked?h('div',{style:{display:"flex",gap:"6px"}},
-                    h('button',{onClick:()=>setType(m.id,"TRUCK"),style:{...btn(type==="TRUCK"?G.am:"none",type==="TRUCK"?"#000":G.mut,{border:`1px solid ${type==="TRUCK"?G.am:G.b1}`,fontSize:"11px",padding:"3px 10px"})}},
-                      "🚛 TRUCK"
-                    ),
-                    h('button',{onClick:()=>setType(m.id,"CONTAINER"),style:{...btn(type==="CONTAINER"?G.ac:"none",type==="CONTAINER"?"#fff":G.mut,{border:`1px solid ${type==="CONTAINER"?G.ac:G.b1}`,fontSize:"11px",padding:"3px 10px"})}},
-                      "📦 CONTAINER"
-                    )
+                  checked?h('div',{style:{display:"flex",gap:"10px"}},
+                    chk(truck,()=>toggleType(m.id,"truck"),"🚛 TRUCK",G.am),
+                    chk(container,()=>toggleType(m.id,"container"),"📦 CONTAINER",G.ac)
                   ):null
                 )
               );
@@ -1033,8 +1061,8 @@ function Pros({db,setDb,T}){
           )
       ),
       h('div',{style:{display:"flex",gap:"8px",marginTop:"14px"}},
-        h('button',{onClick:add,style:btn(G.ac,"#fff")},"Créer"),
-        h('button',{onClick:()=>{setForm(false);setNp({nom:"",cat:"",magTypes:{}});},style:btn("none",G.mut,{border:`1px solid ${G.b1}`})},"Annuler")
+        h('button',{onClick:save,style:btn(G.ac,"#fff")},editId!==null?"💾 Enregistrer":"Créer"),
+        h('button',{onClick:()=>{setForm(false);setEditId(null);setNp({nom:"",magTypes:{}});},style:btn("none",G.mut,{border:`1px solid ${G.b1}`})},"Annuler")
       )
     ):null,
 
@@ -1051,41 +1079,51 @@ function Pros({db,setDb,T}){
     h('div',{style:card({overflow:"hidden"})},
       h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
         h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
-          ["Nom","Catégorie","Magasins","Approv.","Commandes",""].map(x=>h('th',{key:x,style:tbh},x))
+          ["Nom","Magasins","Approvisionnement","Commandes",""].map(x=>h('th',{key:x,style:tbh},x))
         )),
         h('tbody',null,
           ...filtered.map((p,i)=>{
             const nb=commandes.filter(c=>c.lignes.some(l=>l.produitId===p.id)).length;
-            const lastApprov=(p.approvisionnements||[]).slice(-1)[0];
+            // Collect unique types per magasin
+            const magApprovs=(p.magasins||[]).map(mid=>{
+              const approvs=(p.approvisionnements||[]).filter(a=>a.magasinId===mid);
+              const types=[...new Set(approvs.map(a=>a.type))];
+              return{mid,types};
+            });
             return h('tr',{key:p.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
-              h('td',{style:tbd({fontWeight:500}),onDoubleClick:()=>{setEd(`${p.id}-n`);setEv(p.nom);}},
-                ed===`${p.id}-n`?h('input',{className:"ci",value:ev,autoFocus:true,onChange:e=>setEv(e.target.value),onBlur:()=>commit(p.id,"nom"),onKeyDown:e=>{if(e.key==="Enter")commit(p.id,"nom");if(e.key==="Escape")setEd(null);}}):p.nom
-              ),
-              h('td',{style:tbd({color:G.dim}),onDoubleClick:()=>{setEd(`${p.id}-c`);setEv(p.cat||"");}},
-                ed===`${p.id}-c`?h('input',{className:"ci",value:ev,autoFocus:true,onChange:e=>setEv(e.target.value),onBlur:()=>commit(p.id,"cat"),onKeyDown:e=>{if(e.key==="Enter")commit(p.id,"cat");if(e.key==="Escape")setEd(null);}}):p.cat||h('span',{style:{color:"#333"}},"—")
+              h('td',{style:tbd({fontWeight:500}),onDoubleClick:()=>{setEd(p.id);setEv(p.nom);}},
+                ed===p.id?h('input',{className:"ci",value:ev,autoFocus:true,onChange:e=>setEv(e.target.value),onBlur:()=>commitNom(p.id),onKeyDown:e=>{if(e.key==="Enter")commitNom(p.id);if(e.key==="Escape")setEd(null);}}):p.nom
               ),
               h('td',{style:tbd()},
                 h('div',{style:{display:"flex",gap:"4px",flexWrap:"wrap"}},
-                  ...(p.magasins||[]).map(mid=>h('span',{key:mid,style:{fontSize:"10px",background:G.acBg,color:G.acL,border:`1px solid ${G.acBd}`,padding:"1px 6px",borderRadius:"10px",display:"inline-flex",alignItems:"center",gap:"4px"}},
-                    mN(magasins,mid),
-                    h('span',{onClick:()=>{if(!confirm(`Retirer ce produit du magasin ${mN(magasins,mid)} ?`))return;removeMag(p.id,mid);},style:{cursor:"pointer",color:G.re,fontSize:"10px",lineHeight:1}},"×")
+                  ...(p.magasins||[]).map(mid=>h('span',{key:mid,style:{fontSize:"10px",background:G.acBg,color:G.acL,border:`1px solid ${G.acBd}`,padding:"1px 7px",borderRadius:"10px"}},
+                    mN(magasins,mid)
                   ))
                 )
               ),
               h('td',{style:tbd()},
-                lastApprov?h(Tag,{label:(lastApprov.type==="TRUCK"?"🚛 ":"📦 ")+lastApprov.type,color:lastApprov.type==="TRUCK"?G.am:G.ac}):h('span',{style:{color:"#333"}},"—")
+                h('div',{style:{display:"flex",gap:"4px",flexWrap:"wrap"}},
+                  ...magApprovs.flatMap(({mid,types})=>
+                    types.map(type=>h('span',{key:mid+type,style:{fontSize:"10px",background:type==="TRUCK"?G.am+"22":G.ac+"22",color:type==="TRUCK"?G.am:G.acL,border:`1px solid ${type==="TRUCK"?G.am+"44":G.acBd}`,padding:"1px 7px",borderRadius:"10px"}},
+                      (type==="TRUCK"?"🚛 ":"📦 ")+mN(magasins,mid)
+                    ))
+                  )
+                )
               ),
               h('td',{style:tbd({color:nb>0?G.acL:"#333"})},nb>0?nb+" cmd(s)":"—"),
-              h('td',{style:tbd()},h('button',{onClick:()=>{if(!confirm("Supprimer ce produit ?"))return;del(p.id);},style:{background:"none",color:G.mut,border:`1px solid ${G.b1}`,padding:"3px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕"))
+              h('td',{style:tbd({display:"flex",gap:"5px"})},
+                h('button',{onClick:()=>openEdit(p),style:{background:G.acBg,color:G.acL,border:`1px solid ${G.acBd}`,padding:"3px 8px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✏"),
+                h('button',{onClick:()=>{if(!confirm("Supprimer ce produit ?"))return;del(p.id);},style:{background:"none",color:G.mut,border:`1px solid ${G.b1}`,padding:"3px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕")
+              )
             );
           }),
           h('tr',{style:{borderTop:`2px solid ${G.b1}`,background:G.d2}},
             h('td',{style:{padding:"9px 12px",fontSize:"11px",color:G.mut}},`${filtered.length} produit(s)`),
-            h('td',null),h('td',null),h('td',null),h('td',null),h('td',null)
+            h('td',null),h('td',null),h('td',null),h('td',null)
           )
         )
       ),
-      h('div',{style:{padding:"6px 12px",borderTop:"1px solid #141420",fontSize:"10px",color:"#333"}},"Double-clic sur nom ou catégorie pour modifier")
+      h('div',{style:{padding:"6px 12px",borderTop:"1px solid #141420",fontSize:"10px",color:"#333"}},"Double-clic sur le nom pour modifier · ✏ pour changer les magasins")
     )
   );
 }
