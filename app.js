@@ -516,6 +516,8 @@ function Mags({db,setDb,T}){
   const [showTransfert,setShowTransfert]=useState(false);
   const [showApprov,setShowApprov]=useState(false);
   const [showHistApprov,setShowHistApprov]=useState(false);
+  const [editNote,setEditNote]=useState(null); // log.id en cours d'édition
+  const [noteVal,setNoteVal]=useState("");
   const [tr,setTr]=useState({produitId:"",versId:"",qty:"",date:new Date().toISOString().slice(0,10)});
   const [ap,setAp]=useState({produitId:"",qty:"",type:"TRUCK",date:new Date().toISOString().slice(0,10)});
   const mag=magasins.find(m=>m.id===sel)||null;
@@ -808,18 +810,40 @@ function Mags({db,setDb,T}){
         h('div',{style:card({overflow:"hidden"})},
           h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
             h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
-              ["Date","Produit","Avant","Après","Note",""].map(x=>h('th',{key:x,style:tbh},x))
+              ["Date","Produit","Qté","Note",""].map(x=>h('th',{key:x,style:tbh},x))
             )),
             h('tbody',null,
               ...[...magStockLogs].sort((a,b)=>b.date.localeCompare(a.date)).flatMap((log,li)=>
-                log.changes.map((ch,ci)=>h('tr',{key:log.id+"-"+ci,className:"trh",style:{borderBottom:"1px solid #141420",background:li%2===0?"transparent":"rgba(255,255,255,.01)"}},
-                  h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},ci===0?fmtDate(log.date):""),
-                  h('td',{style:tbd({fontWeight:500})},ch.produitNom),
-                  h('td',{style:tbd({color:G.mut})},ch.avant),
-                  h('td',{style:tbd({color:G.acL,fontWeight:600})},ch.apres),
-                  h('td',{style:tbd({fontSize:"10px"})},ci===0?h('span',{style:{color:G.am,background:G.am+"15",border:`1px solid ${G.am}33`,padding:"1px 7px",borderRadius:"10px"}},log.note):null),
-                  h('td',{style:tbd()},ci===0?h('button',{onClick:()=>setDb(p=>({...p,stockLogs:(p.stockLogs||[]).filter(x=>x.id!==log.id)})),style:{background:"none",color:G.mut,border:`1px solid ${G.b1}`,padding:"3px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕"):null)
-                ))
+                log.changes.map((ch,ci)=>{
+                  const diff=ch.apres-ch.avant;
+                  const noteId=log.id+"-note";
+                  return h('tr',{key:log.id+"-"+ci,className:"trh",style:{borderBottom:"1px solid #141420",background:li%2===0?"transparent":"rgba(255,255,255,.01)"}},
+                    h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},ci===0?fmtDate(log.date):""),
+                    h('td',{style:tbd({fontWeight:500})},ch.produitNom),
+                    h('td',{style:tbd({fontWeight:700,color:diff<0?G.re:diff>0?G.gr:G.mut})},
+                      (diff>0?"+":"")+diff
+                    ),
+                    h('td',{style:tbd()},ci===0?(
+                      editNote===noteId
+                        ?h('div',{style:{display:"flex",gap:"5px",alignItems:"center"}},
+                            h('input',{autoFocus:true,value:noteVal,onChange:e=>setNoteVal(e.target.value),
+                              onBlur:()=>{setDb(p=>({...p,stockLogs:(p.stockLogs||[]).map(x=>x.id===log.id?{...x,note:noteVal}:x)}));setEditNote(null);},
+                              onKeyDown:e=>{
+                                if(e.key==="Enter"){setDb(p=>({...p,stockLogs:(p.stockLogs||[]).map(x=>x.id===log.id?{...x,note:noteVal}:x)}));setEditNote(null);}
+                                if(e.key==="Escape")setEditNote(null);
+                              },
+                              style:{background:"#1a1a26",border:"1px solid #5b5bf6",color:"#e2e0db",padding:"3px 7px",borderRadius:"5px",fontSize:"11px",fontFamily:"inherit",width:"150px",outline:"none"}
+                            })
+                          )
+                        :h('span',{
+                            onDoubleClick:()=>{setNoteVal(log.note||"");setEditNote(noteId);},
+                            title:"Double-clic pour modifier",
+                            style:{cursor:"text",color:log.note&&log.note!=="Modifié manuellement"?G.txt:G.mut,fontSize:"11px",display:"inline-block",minWidth:"80px",padding:"2px 4px",borderRadius:"4px",border:"1px solid transparent"}
+                          },log.note||"Double-clic pour écrire...")
+                    ):null),
+                    h('td',{style:tbd()},ci===0?h('button',{onClick:()=>setDb(p=>({...p,stockLogs:(p.stockLogs||[]).filter(x=>x.id!==log.id)})),style:{background:"none",color:G.mut,border:`1px solid ${G.b1}`,padding:"3px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕"):null)
+                  );
+                })
               )
             )
           )
