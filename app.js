@@ -3,7 +3,7 @@ const {createElement:h,useState,useEffect,Fragment}=React;
 // ── DB ───────────────────────────────────────────────────────────────────────
 const EMPTY={clients:[],produits:[],magasins:[],commandes:[],transferts:[]};
 function gid(a){return a.length?Math.max(...a.map(x=>x.id))+1:1;}
-function tCmd(c){return c.lignes.reduce((s,l)=>s+(l.amount||0),0);}
+function tCmd(c){return c.montantDirect||c.lignes.reduce((s,l)=>s+(l.amount||0),0);}
 function cN(cs,id){return(cs.find(c=>c.id===id)||{}).nom||"—";}
 function mN(ms,id){return(ms.find(m=>m.id===id)||{}).nom||"—";}
 function pN(ps,id){return(ps.find(p=>p.id===id)||{}).nom||"—";}
@@ -281,10 +281,14 @@ function Home({db,setTab}){
                 h('td',{style:tbd()},h('span',{style:{color:G.dim,fontWeight:700}},`#${c.id}`),isT?h('span',{style:{fontSize:"9px",background:G.am+"22",color:G.am,border:`1px solid ${G.am}33`,padding:"1px 5px",borderRadius:"10px",marginLeft:"5px"}},"auj."):null),
                 h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},fmtDate(c.date)),
                 h('td',{style:tbd({fontWeight:600,color:"#d0cec9"})},cN(clients,c.clientId)),
-                h('td',{style:tbd()},h(Tag,{label:"🏪 "+mN(magasins,c.magasinId)})),
+                h('td',{style:tbd()},h(Tag,{label:c.magasinId?"🏪 "+mN(magasins,c.magasinId):"—",color:c.magasinId?G.ac:G.mut})),
                 h('td',{style:tbd()},
-                  ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId)+" ×"+l.qty)),
-                  c.lignes.length>2?h('span',{style:{fontSize:"10px",color:G.mut}},`+${c.lignes.length-2}`):null
+                  c.montantDirect
+                    ?h('span',{style:{fontSize:"10px",color:G.am,background:G.am+"15",border:`1px solid ${G.am}33`,padding:"2px 7px",borderRadius:"10px"}},"⚡ Rapide")
+                    :[
+                      ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId)+" ×"+l.qty)),
+                      c.lignes.length>2?h('span',{key:"m",style:{fontSize:"10px",color:G.mut}},`+${c.lignes.length-2}`):null
+                    ]
                 ),
                 h('td',{style:tbd({color:tot>0?G.te:"#333",fontWeight:tot>0?700:400,whiteSpace:"nowrap"})},tot>0?tot.toLocaleString()+" GMD":"—"),
                 h('td',{style:tbd({color:G.ac,fontSize:"11px"})},"→")
@@ -303,7 +307,8 @@ function Home({db,setTab}){
 function Cmds({db,setDb,T,setTab}){
   const {clients,produits,magasins,commandes,transferts}=db;
   const [form,setForm]=useState(false);
-  const [nc,setNc]=useState({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[]});
+  const [mode,setMode]=useState("rapide"); // "rapide" | "detail"
+  const [nc,setNc]=useState({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[],montantDirect:""});
   const [sCli,setSCli]=useState("");
   const [sPro,setSPro]=useState("");
   const [det,setDet]=useState(null);
@@ -314,11 +319,17 @@ function Cmds({db,setDb,T,setTab}){
     let cid=nc.clientId;
     if(!cid&&sCli){const m=clients.filter(c=>c.nom.toLowerCase()===sCli.toLowerCase());if(m.length===1)cid=m[0].id;}
     if(!cid)return T("Sélectionnez un client dans la liste",true);
-    if(!nc.magasinId)return T("Sélectionnez un magasin",true);
-    if(!nc.lignes.length)return T("Sélectionnez au moins un produit",true);
     const id=gid(commandes);
-    setDb(p=>({...p,commandes:[...p.commandes,{id,clientId:Number(cid),magasinId:Number(nc.magasinId),date:nc.date,lignes:nc.lignes}]}));
-    setNc({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[]});
+    if(mode==="rapide"){
+      const montant=Number(nc.montantDirect);
+      if(!montant||montant<=0)return T("Montant invalide",true);
+      setDb(p=>({...p,commandes:[...p.commandes,{id,clientId:Number(cid),magasinId:null,date:nc.date,lignes:[{produitId:null,qty:1,up:montant,amount:montant,dnote:null}],montantDirect:montant}]}));
+    } else {
+      if(!nc.magasinId)return T("Sélectionnez un magasin",true);
+      if(!nc.lignes.length)return T("Sélectionnez au moins un produit",true);
+      setDb(p=>({...p,commandes:[...p.commandes,{id,clientId:Number(cid),magasinId:Number(nc.magasinId),date:nc.date,lignes:nc.lignes}]}));
+    }
+    setNc({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[],montantDirect:""});
     setSCli("");setSPro("");setForm(false);
     T(`Commande #${id} créée !`);
   }
@@ -376,28 +387,40 @@ function Cmds({db,setDb,T,setTab}){
       h('button',{onClick:()=>setForm(v=>!v),style:btn(G.ac,"#fff")},form?"✕ Fermer":"+ Nouvelle commande")
     ),
     form?h('div',{className:"fu",style:{...card({padding:"16px",marginBottom:"16px"}),border:`1px solid ${G.ac}`}},
-      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"14px"}},"NOUVELLE COMMANDE"),
+      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},"NOUVELLE COMMANDE"),
+      // Mode switcher
+      h('div',{style:{display:"flex",gap:"6px",marginBottom:"14px"}},
+        h('button',{onClick:()=>setMode("rapide"),style:{...btn(mode==="rapide"?G.ac:"none",mode==="rapide"?"#fff":G.mut,{border:`1px solid ${mode==="rapide"?G.ac:G.b1}`,fontSize:"12px",padding:"5px 14px"})}},
+          "⚡ Rapide (date + montant)"
+        ),
+        h('button',{onClick:()=>setMode("detail"),style:{...btn(mode==="detail"?G.ac:"none",mode==="detail"?"#fff":G.mut,{border:`1px solid ${mode==="detail"?G.ac:G.b1}`,fontSize:"12px",padding:"5px 14px"})}},
+          "📦 Détaillé (produits + magasin)"
+        )
+      ),
       !clients.length?h('div',{style:{color:G.re,fontSize:"12px"}},"⚠ ",h('button',{onClick:()=>setTab("cli"),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",textDecoration:"underline",fontSize:"12px"}},"Créer un client →")):
-      !magasins.length?h('div',{style:{color:G.re,fontSize:"12px"}},"⚠ ",h('button',{onClick:()=>setTab("mag"),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",textDecoration:"underline",fontSize:"12px"}},"Créer un magasin →")):
       h('div',null,
-        h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
+        // Client + Date always shown
+        h('div',{style:{display:"grid",gridTemplateColumns:mode==="rapide"?"1fr 1fr 1fr":"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
           h(Lbl,{label:"Client *"},
             h(SearchDrop,{value:sCli,onChange:v=>{setSCli(v);setNc(p=>({...p,clientId:""}));},results:fClis,onSelect:c=>{setNc(p=>({...p,clientId:c.id}));setSCli(c.nom);},selected:selCli,onClear:()=>{setNc(p=>({...p,clientId:""}));setSCli("");},placeholder:"🔍 Rechercher un client...",getLabel:c=>c.nom})
           ),
-          h(Lbl,{label:"Magasin *"},
-            h(Sel,{value:nc.magasinId,onChange:e=>setNc(p=>({...p,magasinId:e.target.value,lignes:[]}))},
-              h('option',{value:""},"— Choisir —"),
-              ...magasins.map(m=>h('option',{key:m.id,value:m.id},"🏪 "+m.nom))
+          h(Lbl,{label:"Date *"},h(Inp,{type:"date",value:nc.date,onChange:e=>setNc(p=>({...p,date:e.target.value}))})),
+          mode==="rapide"?
+            h(Lbl,{label:"Montant (GMD) *"},h(Inp,{type:"number",value:nc.montantDirect,onChange:e=>setNc(p=>({...p,montantDirect:e.target.value})),placeholder:"0"})):
+            h(Lbl,{label:"Magasin *"},
+              h(Sel,{value:nc.magasinId,onChange:e=>setNc(p=>({...p,magasinId:e.target.value,lignes:[]}))},
+                h('option',{value:""},"— Choisir —"),
+                ...magasins.map(m=>h('option',{key:m.id,value:m.id},"🏪 "+m.nom))
+              )
             )
-          ),
-          h(Lbl,{label:"Date *"},h(Inp,{type:"date",value:nc.date,onChange:e=>setNc(p=>({...p,date:e.target.value}))}))
         ),
-        nc.magasinId?h('div',null,
+        // Produits (detailed mode only)
+        mode==="detail"&&nc.magasinId?h('div',null,
           h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}},
             h('div',{style:{fontSize:"10px",color:G.acL,textTransform:"uppercase",fontWeight:600}},"Produits — 🏪 "+(mag?mag.nom:"")),
             h('div',{style:{fontSize:"10px",color:G.mut}},`${nc.lignes.length} sélectionné(s)`)
           ),
-          magProds.length===0?h('div',{style:{color:G.am,fontSize:"12px",padding:"8px",background:G.am+"11",borderRadius:"6px"}},"⚠ Ce magasin n'a aucun produit. Ajoutez des produits depuis l'onglet Produits."):
+          magProds.length===0?h('div',{style:{color:G.am,fontSize:"12px",padding:"8px",background:G.am+"11",borderRadius:"6px"}},"⚠ Ce magasin n'a aucun produit."):
           h(Fragment,null,
             h(SearchDrop,{value:sPro,onChange:v=>setSPro(v),results:fPros,onSelect:p=>{toggleP(p);setSPro("");},selected:null,onClear:()=>setSPro(""),placeholder:"🔍 Tapez un nom de produit...",getLabel:p=>p.nom,
               getSubLabel:p=>{const d=stockDispo(mag,p.id,commandes,db.transferts||[]);const sel=nc.lignes.some(l=>l.produitId===p.id);return "Stock: "+d+(sel?" · ✓ sélectionné":"");}}),
@@ -445,8 +468,12 @@ function Cmds({db,setDb,T,setTab}){
                 h('td',{style:tbd({fontWeight:600,color:"#d0cec9"})},cN(clients,c.clientId)),
                 h('td',{style:tbd()},h(Tag,{label:"🏪 "+mN(magasins,c.magasinId)})),
                 h('td',{style:tbd()},
-                  ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId))),
-                  c.lignes.length>2?h('span',{style:{fontSize:"10px",color:G.mut}},`+${c.lignes.length-2}`):null
+                  c.montantDirect
+                    ?h('span',{style:{fontSize:"10px",color:G.am,background:G.am+"15",border:`1px solid ${G.am}33`,padding:"2px 7px",borderRadius:"10px"}},"⚡ Commande rapide")
+                    :[
+                      ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId))),
+                      c.lignes.length>2?h('span',{key:"more",style:{fontSize:"10px",color:G.mut}},`+${c.lignes.length-2}`):null
+                    ]
                 ),
                 h('td',{style:tbd({color:tot>0?G.te:"#333",fontWeight:tot>0?700:400,whiteSpace:"nowrap"})},tot>0?tot.toLocaleString()+" GMD":"—"),
                 h('td',{style:tbd({display:"flex",gap:"5px"})},
@@ -778,10 +805,15 @@ function Clis({db,setDb,T}){
           h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.gr}},totalPaie>0?totalPaie.toLocaleString()+" GMD":"—")
         ),
         h('div',{style:{...card({padding:"14px 16px"}),border:`1px solid ${dette>0?G.re+"55":dette<0?G.gr+"55":G.b1}`}},
-          h('div',{style:{fontSize:"10px",color:G.mut,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}},"💸 Dette restante"),
+          h('div',{style:{fontSize:"10px",color:G.mut,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}},"💸 Dette"),
           h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:dette>0?G.re:dette<0?G.gr:G.dim}},
-            dette===0?"✓ Soldé":dette>0?dette.toLocaleString()+" GMD":h('span',null,"Crédit +"+Math.abs(dette).toLocaleString()+" GMD")
-          )
+            dette===0?"✓ Soldé":
+            dette>0?dette.toLocaleString()+" GMD":
+            h('span',null,"Je dois "+Math.abs(dette).toLocaleString()+" GMD")
+          ),
+          dette!==0?h('div',{style:{fontSize:"10px",color:G.mut,marginTop:"4px"}},
+            dette>0?"🔴 Le client vous doit":"🟢 Vous devez au client"
+          ):null
         )
       ),
 
@@ -872,8 +904,10 @@ function Clis({db,setDb,T}){
             h('td',{style:tbd()},h('span',{onClick:()=>setDet(c.id),style:{padding:"2px 7px",background:G.acBg,border:`1px solid ${G.acBd}`,borderRadius:"6px",color:G.acL,fontSize:"11px",cursor:"pointer"}},"🧾 "+c.nc)),
             h('td',{style:tbd({color:c.tot>0?G.te:"#333",fontWeight:c.tot>0?600:400})},c.tot>0?c.tot.toLocaleString()+" GMD":"—"),
             h('td',{style:tbd()},
-              h('span',{style:{fontWeight:700,color:c.dette>0?G.re:c.dette<0?G.gr:G.dim}},
-                c.dette===0?"✓ Soldé":c.dette>0?c.dette.toLocaleString()+" GMD":"Crédit"
+              h('span',{style:{fontWeight:700,color:c.dette>0?G.re:c.dette<0?G.gr:G.dim},title:c.dette>0?"Le client vous doit":c.dette<0?"Vous devez au client":""},
+                c.dette===0?"✓ Soldé":
+                c.dette>0?"🔴 "+c.dette.toLocaleString()+" GMD":
+                "🟢 "+Math.abs(c.dette).toLocaleString()+" GMD"
               )
             ),
             h('td',{style:tbd({display:"flex",gap:"5px"})},
@@ -883,7 +917,7 @@ function Clis({db,setDb,T}){
           )),
           h('tr',{style:{borderTop:`2px solid ${G.b1}`,background:G.d2}},
             h('td',{colSpan:3,style:{padding:"9px 12px",fontSize:"11px",color:G.mut}},`${stats.length} client(s)`),
-            h('td',{style:{padding:"9px 12px",color:grandDette>0?G.re:G.gr,fontWeight:700}},grandDette>0?grandDette.toLocaleString()+" GMD total":"✓ Tous soldés"),
+            h('td',{style:{padding:"9px 12px",color:grandDette>0?G.re:G.gr,fontWeight:700}},grandDette>0?grandDette.toLocaleString()+" GMD dûs":"✓ Tous soldés"),
             h('td',null)
           )
         )
