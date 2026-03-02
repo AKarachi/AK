@@ -49,7 +49,18 @@ function Inp(props){return h('input',{style:{...IS,...(props.style||{})},...prop
 function Sel({value,onChange,children,style:s}){
   return h('select',{value,onChange,style:{...IS,...(s||{}),color:value?G.txt:G.mut}},children);
 }
-function Lbl({label,children,style:s}){
+// EditableDate — affiche jj/mm/aaaa, clic sur ✏ pour modifier
+function EditableDate({value,onChange}){
+  return h('span',{style:{display:"inline-flex",alignItems:"center",gap:"5px"}},
+    h('span',{style:{color:"#777",fontSize:"12px"}},fmtDate(value)),
+    h('label',{style:{cursor:"pointer",lineHeight:1}},
+      h('input',{type:"date",value:value,onChange:e=>{if(e.target.value)onChange(e.target.value);},
+        style:{position:"absolute",opacity:0,width:0,height:0,pointerEvents:"none"}}),
+      h('span',{style:{fontSize:"10px",color:G.ac,cursor:"pointer"}},"✏")
+    )
+  );
+}
+
   return h('div',{style:s},
     h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"4px"}},label),
     children
@@ -285,7 +296,7 @@ function Home({db,setTab}){
               const tot=tCmd(c);const isT=c.date===today;
               return h('tr',{key:c.id,className:"trh",onClick:()=>setDet(c.id),style:{borderBottom:"1px solid #141420",background:isT?"#5b5bf608":i%2===0?"transparent":"rgba(255,255,255,.01)",cursor:"pointer"}},
                 h('td',{style:tbd()},h('span',{style:{color:G.dim,fontWeight:700}},`#${c.id}`),isT?h('span',{style:{fontSize:"9px",background:G.am+"22",color:G.am,border:`1px solid ${G.am}33`,padding:"1px 5px",borderRadius:"10px",marginLeft:"5px"}},"auj."):null),
-                h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},fmtDate(c.date)),
+                h('td',{style:tbd({whiteSpace:"nowrap"})},h(EditableDate,{value:c.date,onChange:v=>setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}))})),
                 h('td',{style:tbd({fontWeight:600,color:"#d0cec9"})},cN(clients,c.clientId)),
                 h('td',{style:tbd()},h(Tag,{label:c.magasinId?"🏪 "+mN(magasins,c.magasinId):"—",color:c.magasinId?G.ac:G.mut})),
                 h('td',{style:tbd()},
@@ -476,7 +487,7 @@ function Cmds({db,setDb,T,setTab}){
               const tot=tCmd(c);
               return h('tr',{key:c.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
                 h('td',{style:tbd({color:G.dim,fontWeight:700})},`#${c.id}`),
-                h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},fmtDate(c.date)),
+                h('td',{style:tbd({whiteSpace:"nowrap"})},h(EditableDate,{value:c.date,onChange:v=>setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}))})),
                 h('td',{style:tbd({fontWeight:600,color:"#d0cec9"})},cN(clients,c.clientId)),
                 h('td',{style:tbd()},h(Tag,{label:"🏪 "+mN(magasins,c.magasinId)})),
                 h('td',{style:tbd()},
@@ -778,7 +789,7 @@ function Mags({db,setDb,T}){
             h('tbody',null,
               ...[...magApprovHist].sort((a,b)=>b.date.localeCompare(a.date)).map((a,i)=>
                 h('tr',{key:a.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
-                  h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},fmtDate(a.date)),
+                  h('td',{style:tbd({whiteSpace:"nowrap"})},h(EditableDate,{value:a.date,onChange:v=>setDb(p=>({...p,approvHist:(p.approvHist||[]).map(x=>x.id===a.id?{...x,date:v}:x)}))})),
                   h('td',{style:tbd({fontWeight:500})},a.produitNom),
                   h('td',{style:tbd({color:G.gr,fontWeight:700})},"+ "+a.qty),
                   h('td',{style:tbd()},h(Tag,{label:(a.type==="TRUCK"?"🚛 ":"📦 ")+a.type,color:a.type==="TRUCK"?G.am:G.ac})),
@@ -818,7 +829,7 @@ function Mags({db,setDb,T}){
                   const diff=ch.apres-ch.avant;
                   const noteId=log.id+"-note";
                   return h('tr',{key:log.id+"-"+ci,className:"trh",style:{borderBottom:"1px solid #141420",background:li%2===0?"transparent":"rgba(255,255,255,.01)"}},
-                    h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},ci===0?fmtDate(log.date):""),
+                    h('td',{style:tbd({whiteSpace:"nowrap"})},ci===0?h(EditableDate,{value:log.date,onChange:v=>setDb(p=>({...p,stockLogs:(p.stockLogs||[]).map(x=>x.id===log.id?{...x,date:v}:x)}))}):null),
                     h('td',{style:tbd({fontWeight:500})},ch.produitNom),
                     h('td',{style:tbd({fontWeight:700,color:diff<0?G.re:diff>0?G.gr:G.mut})},
                       (diff>0?"+":"")+diff
@@ -862,7 +873,7 @@ function Mags({db,setDb,T}){
               ...magTr.sort((a,b)=>b.date.localeCompare(a.date)).map((t,i)=>{
                 const sortant=t.deId===mag.id;
                 return h('tr',{key:t.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
-                  h('td',{style:tbd({color:"#777"})},fmtDate(t.date)),
+                  h('td',{style:tbd()},h(EditableDate,{value:t.date,onChange:v=>setDb(p=>({...p,transferts:(p.transferts||[]).map(x=>x.id===t.id?{...x,date:v}:x)}))})),
                   h('td',{style:tbd({fontWeight:500})},pN(produits,t.produitId)),
                   h('td',{style:tbd({color:sortant?G.re:G.gr,fontWeight:700})},(sortant?"-":"+")+t.qty),
                   h('td',{style:tbd({fontSize:"11px"})},
@@ -888,7 +899,7 @@ function Mags({db,setDb,T}){
             magCmds.length===0?h('tr',null,h('td',{colSpan:5,style:{padding:"20px",textAlign:"center",color:"#333"}},"Aucune commande")):
             magCmds.sort((a,b)=>b.date.localeCompare(a.date)).map((c,i)=>h('tr',{key:c.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
               h('td',{style:tbd({color:G.dim})},"#"+c.id),
-              h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},fmtDate(c.date)),
+              h('td',{style:tbd({whiteSpace:"nowrap"})},h(EditableDate,{value:c.date,onChange:v=>setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}))})),
               h('td',{style:tbd({fontWeight:500})},cN(clients,c.clientId)),
               h('td',{style:tbd()},
                 ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId)+" ×"+l.qty)),
@@ -1028,7 +1039,7 @@ function Clis({db,setDb,T}){
             cmds.length===0?h('tr',null,h('td',{colSpan:5,style:{padding:"20px",textAlign:"center",color:"#333",fontSize:"12px"}},"Aucune commande")):
             cmds.map((c,i)=>h('tr',{key:c.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
               h('td',{style:tbd({color:G.dim,fontWeight:600})},"#"+c.id),
-              h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},fmtDate(c.date)),
+              h('td',{style:tbd({whiteSpace:"nowrap"})},h(EditableDate,{value:c.date,onChange:v=>setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}))})),
               h('td',{style:tbd()},h(Tag,{label:"🏪 "+mN(magasins,c.magasinId)})),
               h('td',{style:tbd()},
                 ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId)+" ×"+l.qty)),
@@ -1053,7 +1064,7 @@ function Clis({db,setDb,T}){
             paiements.map((p,i)=>{
               const icons={"cash":"💵 Cash","virement":"🏦 Virement","cheque":"📄 Chèque","mobile":"📱 Mobile","autre":"🔄 Autre"};
               return h('tr',{key:p.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
-                h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},fmtDate(p.date)),
+                h('td',{style:tbd({whiteSpace:"nowrap"})},h(EditableDate,{value:p.date,onChange:v=>setDb(p2=>({...p2,clients:p2.clients.map(c=>c.id===det?{...c,paiements:(c.paiements||[]).map(x=>x.id===p.id?{...x,date:v}:x)}:c)}))})),
                 h('td',{style:tbd({color:G.gr,fontWeight:700})},p.montant.toLocaleString()+" GMD"),
                 h('td',{style:tbd()},h(Tag,{label:icons[p.type]||p.type,color:G.gr})),
                 h('td',{style:tbd()},h('button',{onClick:()=>{if(!confirm("Supprimer ce paiement ?"))return;setDb(prev=>({...prev,clients:prev.clients.map(c=>c.id===det?{...c,paiements:(c.paiements||[]).filter(x=>x.id!==p.id)}:c)}));T("Paiement supprimé");},style:{background:"none",color:G.mut,border:`1px solid ${G.b1}`,padding:"3px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕"))
