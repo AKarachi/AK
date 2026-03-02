@@ -51,13 +51,17 @@ function Sel({value,onChange,children,style:s}){
 }
 // EditableDate — affiche jj/mm/aaaa, clic sur ✏ pour modifier
 function EditableDate({value,onChange}){
-  return h('span',{style:{display:"inline-flex",alignItems:"center",gap:"5px"}},
+  const [editing,setEditing]=useState(false);
+  if(editing){
+    return h('input',{type:"date",value:value,autoFocus:true,
+      onChange:e=>{if(e.target.value){onChange(e.target.value);setEditing(false);}},
+      onBlur:()=>setEditing(false),
+      style:{background:"#1a1a26",border:"1px solid #5b5bf6",color:"#e2e0db",padding:"2px 6px",borderRadius:"5px",fontSize:"11px",fontFamily:"inherit",cursor:"pointer",outline:"none"}
+    });
+  }
+  return h('span',{style:{display:"inline-flex",alignItems:"center",gap:"5px",cursor:"pointer"},onClick:()=>setEditing(true)},
     h('span',{style:{color:"#777",fontSize:"12px"}},fmtDate(value)),
-    h('label',{style:{cursor:"pointer",lineHeight:1}},
-      h('input',{type:"date",value:value,onChange:e=>{if(e.target.value)onChange(e.target.value);},
-        style:{position:"absolute",opacity:0,width:0,height:0,pointerEvents:"none"}}),
-      h('span',{style:{fontSize:"10px",color:G.ac,cursor:"pointer"}},"✏")
-    )
+    h('span',{style:{fontSize:"10px",color:G.ac}},"✏")
   );
 }
 function Lbl({label,children,style:s}){
