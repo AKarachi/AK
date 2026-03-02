@@ -796,7 +796,7 @@ function Mags({db,setDb,T}){
         h('div',{style:card({overflow:"hidden"})},
           h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
             h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
-              ["Date","Produit","Avant","Après","Note"].map(x=>h('th',{key:x,style:tbh},x))
+              ["Date","Produit","Avant","Après","Note",""].map(x=>h('th',{key:x,style:tbh},x))
             )),
             h('tbody',null,
               ...[...magStockLogs].sort((a,b)=>b.date.localeCompare(a.date)).flatMap((log,li)=>
@@ -805,7 +805,8 @@ function Mags({db,setDb,T}){
                   h('td',{style:tbd({fontWeight:500})},ch.produitNom),
                   h('td',{style:tbd({color:G.mut})},ch.avant),
                   h('td',{style:tbd({color:G.acL,fontWeight:600})},ch.apres),
-                  h('td',{style:tbd({fontSize:"10px"})},ci===0?h('span',{style:{color:G.am,background:G.am+"15",border:`1px solid ${G.am}33`,padding:"1px 7px",borderRadius:"10px"}},log.note):null)
+                  h('td',{style:tbd({fontSize:"10px"})},ci===0?h('span',{style:{color:G.am,background:G.am+"15",border:`1px solid ${G.am}33`,padding:"1px 7px",borderRadius:"10px"}},log.note):null),
+                  h('td',{style:tbd()},ci===0?h('button',{onClick:()=>setDb(p=>({...p,stockLogs:(p.stockLogs||[]).filter(x=>x.id!==log.id)})),style:{background:"none",color:G.mut,border:`1px solid ${G.b1}`,padding:"3px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕"):null)
                 ))
               )
             )
