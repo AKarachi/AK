@@ -1,7 +1,7 @@
 const {createElement:h,useState,useEffect,Fragment}=React;
 
 // ── DB ───────────────────────────────────────────────────────────────────────
-const EMPTY={clients:[],produits:[],magasins:[],commandes:[],transferts:[]};
+const EMPTY={clients:[],produits:[],magasins:[],commandes:[],transferts:[],approvHist:[],stockLogs:[]};
 function gid(a){return a.length?Math.max(...a.map(x=>x.id))+1:1;}
 function tCmd(c){return c.montantDirect||c.lignes.reduce((s,l)=>s+(l.amount||0),0);}
 function cN(cs,id){return(cs.find(c=>c.id===id)||{}).nom||"—";}
@@ -494,19 +494,50 @@ function Cmds({db,setDb,T,setTab}){
 function Mags({db,setDb,T}){
   const {magasins,produits,commandes,clients}=db;
   const transferts=db.transferts||[];
+  const approvHist=db.approvHist||[];
+  const stockLogs=db.stockLogs||[];
   const [sel,setSel]=useState(null);
   const [addF,setAddF]=useState(false);
   const [nom,setNom]=useState("");
   const [editSt,setEditSt]=useState(false);
   const [st,setSt]=useState({});
   const [showTransfert,setShowTransfert]=useState(false);
+  const [showApprov,setShowApprov]=useState(false);
+  const [showHistApprov,setShowHistApprov]=useState(false);
   const [tr,setTr]=useState({produitId:"",versId:"",qty:"",date:new Date().toISOString().slice(0,10)});
+  const [ap,setAp]=useState({produitId:"",qty:"",type:"TRUCK",date:new Date().toISOString().slice(0,10)});
   const mag=magasins.find(m=>m.id===sel)||null;
 
   function add(){if(!nom.trim())return T("Nom requis",true);const id=gid(magasins);setDb(p=>({...p,magasins:[...p.magasins,{id,nom:nom.trim().toUpperCase(),stock:{}}]}));setSel(id);setNom("");setAddF(false);T("Magasin créé !");}
   function del(id){if(commandes.some(c=>c.magasinId===id))return T("Ce magasin a des commandes",true);setDb(p=>({...p,magasins:p.magasins.filter(m=>m.id!==id)}));if(sel===id)setSel(null);T("Supprimé");}
-  function startE(){const s={};const magProds=produits.filter(p=>(p.magasins||[]).includes(sel));magProds.forEach(p=>{s[p.id]=((mag&&mag.stock)||{})[p.id]||"";});setSt(s);setEditSt(true);}
-  function saveS(){const ns={...((mag&&mag.stock)||{})};Object.entries(st).forEach(([pid,val])=>{const n=Number(val);if(n>0)ns[Number(pid)]=n;else delete ns[Number(pid)];});setDb(p=>({...p,magasins:p.magasins.map(m=>m.id===sel?{...m,stock:ns}:m)}));setEditSt(false);T("Stock enregistré !");}
+
+  function startE(){
+    const s={};
+    const magProds=produits.filter(p=>(p.magasins||[]).includes(sel));
+    magProds.forEach(p=>{s[p.id]=((mag&&mag.stock)||{})[p.id]||"";});
+    setSt(s);setEditSt(true);
+  }
+  function saveS(){
+    const oldStock=(mag&&mag.stock)||{};
+    const ns={...oldStock};
+    const changes=[];
+    Object.entries(st).forEach(([pid,val])=>{
+      const n=Number(val);
+      const old=oldStock[Number(pid)]||0;
+      if(n>0) ns[Number(pid)]=n;
+      else delete ns[Number(pid)];
+      if(n!==old){
+        const pNom=produits.find(x=>x.id===Number(pid))?.nom||"?";
+        changes.push({produitId:Number(pid),produitNom:pNom,avant:old,apres:n>0?n:0});
+      }
+    });
+    const log={id:Date.now(),date:new Date().toISOString().slice(0,10),magasinId:sel,magasinNom:mag.nom,changes,note:"Modifié manuellement"};
+    setDb(p=>({...p,
+      magasins:p.magasins.map(m=>m.id===sel?{...m,stock:ns}:m),
+      stockLogs:[...(p.stockLogs||[]),log]
+    }));
+    setEditSt(false);T("Stock enregistré !");
+  }
 
   function doTransfert(){
     if(!tr.produitId)return T("Choisissez un produit",true);
@@ -519,8 +550,25 @@ function Mags({db,setDb,T}){
     const newTr={id,produitId:Number(tr.produitId),deId:sel,versId:Number(tr.versId),qty,date:tr.date};
     setDb(p=>({...p,transferts:[...(p.transferts||[]),newTr]}));
     setTr({produitId:"",versId:"",qty:"",date:new Date().toISOString().slice(0,10)});
-    setShowTransfert(false);
-    T(`Transfert de ${qty} unités effectué ✓`);
+    setShowTransfert(false);T(`Transfert de ${qty} unités effectué ✓`);
+  }
+
+  function doApprov(){
+    if(!ap.produitId)return T("Choisissez un produit",true);
+    const qty=Number(ap.qty);
+    if(!qty||qty<=0)return T("Quantité invalide",true);
+    const pid=Number(ap.produitId);
+    // Add to stock
+    const curStock=((mag&&mag.stock)||{})[pid]||0;
+    const newStock={...((mag&&mag.stock)||{}),[pid]:curStock+qty};
+    const pNom=produits.find(x=>x.id===pid)?.nom||"?";
+    const entry={id:Date.now(),date:ap.date,magasinId:sel,magasinNom:mag.nom,produitId:pid,produitNom:pNom,qty,type:ap.type};
+    setDb(p=>({...p,
+      magasins:p.magasins.map(m=>m.id===sel?{...m,stock:newStock}:m),
+      approvHist:[...(p.approvHist||[]),entry]
+    }));
+    setAp({produitId:"",qty:"",type:"TRUCK",date:new Date().toISOString().slice(0,10)});
+    setShowApprov(false);T(`Approvisionnement +${qty} enregistré ✓`);
   }
 
   const magProds=mag?produits.filter(p=>(p.magasins||[]).includes(mag.id)):[];
@@ -536,8 +584,11 @@ function Mags({db,setDb,T}){
   const magCmds=mag?commandes.filter(c=>c.magasinId===mag.id):[];
   const magTotal=magCmds.reduce((s,c)=>s+tCmd(c),0);
   const magTr=mag?transferts.filter(t=>t.deId===mag.id||t.versId===mag.id):[];
+  const magApprovHist=mag?approvHist.filter(a=>a.magasinId===mag.id):[];
+  const magStockLogs=mag?stockLogs.filter(l=>l.magasinId===mag.id):[];
 
   return h('div',{className:"fu",style:{display:"flex",gap:"20px",alignItems:"flex-start"}},
+    // Sidebar liste magasins
     h('div',{style:{width:"205px",flexShrink:0}},
       h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"}},
         h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px"}},"Magasins"),
@@ -556,28 +607,32 @@ function Mags({db,setDb,T}){
           const isSel=sel===m.id;
           const nc=commandes.filter(c=>c.magasinId===m.id).length;
           return h('div',{key:m.id,style:{borderRadius:"8px",background:isSel?G.acBg:G.card,border:isSel?`1px solid ${G.acBd}`:`1px solid ${G.b1}`,overflow:"hidden"}},
-            h('button',{onClick:()=>{setSel(m.id);setEditSt(false);setShowTransfert(false);},style:{width:"100%",textAlign:"left",padding:"9px 11px",background:"none",border:"none",cursor:"pointer",color:isSel?G.acL:"#888"}},
+            h('button',{onClick:()=>{setSel(m.id);setEditSt(false);setShowTransfert(false);setShowApprov(false);setShowHistApprov(false);},style:{width:"100%",textAlign:"left",padding:"9px 11px",background:"none",border:"none",cursor:"pointer",color:isSel?G.acL:"#888"}},
               h('div',{style:{fontWeight:600,fontSize:"13px",marginBottom:"2px"}},"🏪 "+m.nom),
               h('div',{style:{fontSize:"10px",color:isSel?G.ac:G.mut}},nc+" cmd(s)")
             ),
-            isSel?h('div',{style:{padding:"0 9px 8px",display:"flex",gap:"5px",flexWrap:"wrap"}},
-              h('button',{onClick:startE,style:{flex:1,background:"#2a2a3a",color:G.dim,border:"none",cursor:"pointer",padding:"4px",borderRadius:"5px",fontSize:"11px"}},"✏ Stock"),
-              h('button',{onClick:()=>setShowTransfert(v=>!v),style:{flex:1,background:G.ac+"22",color:G.acL,border:`1px solid ${G.acBd}`,cursor:"pointer",padding:"4px",borderRadius:"5px",fontSize:"11px"}},"↔ Transfert"),
-              h('button',{onClick:()=>{if(!confirm("Supprimer ce magasin ?"))return;del(m.id);},style:{background:G.re+"15",color:G.re,border:`1px solid ${G.re}30`,padding:"4px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕")
+            isSel?h('div',{style:{padding:"0 9px 8px",display:"flex",gap:"4px",flexWrap:"wrap"}},
+              h('button',{onClick:startE,style:{flex:1,background:"#2a2a3a",color:G.dim,border:"none",cursor:"pointer",padding:"4px",borderRadius:"5px",fontSize:"10px"}},"✏ Stock"),
+              h('button',{onClick:()=>{setShowApprov(v=>!v);setShowTransfert(false);},style:{flex:1,background:G.gr+"22",color:G.gr,border:`1px solid ${G.gr}33`,cursor:"pointer",padding:"4px",borderRadius:"5px",fontSize:"10px"}},"📦 Approv"),
+              h('button',{onClick:()=>setShowTransfert(v=>!v),style:{flex:1,background:G.ac+"22",color:G.acL,border:`1px solid ${G.acBd}`,cursor:"pointer",padding:"4px",borderRadius:"5px",fontSize:"10px"}},"↔ Transfert"),
+              h('button',{onClick:()=>{if(!confirm("Supprimer ce magasin ?"))return;del(m.id);},style:{background:G.re+"15",color:G.re,border:`1px solid ${G.re}30`,padding:"4px 7px",borderRadius:"5px",fontSize:"10px",cursor:"pointer"}},"✕")
             ):null
           );
         })
       )
     ),
+
+    // Détail magasin
     mag?h('div',{style:{flex:1,minWidth:0}},
-      // Summary
+
+      // Summary card
       h('div',{style:card({padding:"14px 16px",marginBottom:"12px"})},
         h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
           h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"17px"}},"🏪 "+mag.nom),
           h('button',{onClick:startE,style:btn(G.ac,"#fff",{padding:"5px 12px",fontSize:"12px"})},"✏ Modifier stock")
         ),
-        h('div',{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"7px"}},
-          ...[["Produits",magProds.length],["Commandes",magCmds.length],["Clients",new Set(magCmds.map(c=>c.clientId)).size]].map(([l,v])=>
+        h('div',{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"7px"}},
+          ...[["Produits",magProds.length],["Commandes",magCmds.length],["Approv.",magApprovHist.length],["Clients",new Set(magCmds.map(c=>c.clientId)).size]].map(([l,v])=>
             h('div',{key:l,style:{background:G.d2,borderRadius:"7px",padding:"8px 11px"}},
               h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase",marginBottom:"2px"}},l),
               h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"15px"}},v)
@@ -585,6 +640,31 @@ function Mags({db,setDb,T}){
           )
         )
       ),
+
+      // Approv form
+      showApprov?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"12px"}),border:`1px solid ${G.gr}55`}},
+        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.gr,marginBottom:"12px"}},"📦 Nouvel approvisionnement — "+mag.nom),
+        h('div',{style:{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:"9px",marginBottom:"10px"}},
+          h(Lbl,{label:"Produit"},
+            h(Sel,{value:ap.produitId,onChange:e=>setAp(x=>({...x,produitId:e.target.value}))},
+              h('option',{value:""},"— Choisir —"),
+              ...magProds.map(p=>h('option',{key:p.id,value:p.id},p.nom))
+            )
+          ),
+          h(Lbl,{label:"Quantité"},h(Inp,{type:"number",value:ap.qty,onChange:e=>setAp(x=>({...x,qty:e.target.value})),placeholder:"0"})),
+          h(Lbl,{label:"Type"},
+            h(Sel,{value:ap.type,onChange:e=>setAp(x=>({...x,type:e.target.value}))},
+              h('option',{value:"TRUCK"},"🚛 TRUCK"),
+              h('option',{value:"CONTAINER"},"📦 CONTAINER")
+            )
+          ),
+          h(Lbl,{label:"Date"},h(Inp,{type:"date",value:ap.date,onChange:e=>setAp(x=>({...x,date:e.target.value}))}))
+        ),
+        h('div',{style:{display:"flex",gap:"8px"}},
+          h('button',{onClick:doApprov,style:btn(G.gr,"#fff")},"✓ Enregistrer"),
+          h('button',{onClick:()=>setShowApprov(false),style:btn("none",G.mut,{border:`1px solid ${G.b1}`})},"Annuler")
+        )
+      ):null,
 
       // Transfert form
       showTransfert?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"12px"}),border:`1px solid ${G.acBd}`}},
@@ -611,10 +691,10 @@ function Mags({db,setDb,T}){
         )
       ):null,
 
-      // Stock edit
+      // Stock edit form
       editSt?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"12px"}),border:`1px solid ${G.ac}`}},
         h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"3px"}},"Stock initial — "+mag.nom),
-        h('div',{style:{color:G.mut,fontSize:"11px",marginBottom:"12px"}},"Quantité initiale par produit"),
+        h('div',{style:{color:G.mut,fontSize:"11px",marginBottom:"12px"}},"Modifiez les quantités — un log sera créé automatiquement"),
         magProds.length===0?h('div',{style:{color:G.mut,fontSize:"12px"}},"Aucun produit dans ce magasin."):
         h('div',{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:"7px",marginBottom:"12px"}},
           ...magProds.map(p=>{
@@ -637,8 +717,7 @@ function Mags({db,setDb,T}){
           h('div',{style:{fontSize:"10px",color:G.acL,textTransform:"uppercase",fontWeight:600}},"📊 Stock actuel"),
           h('div',{style:{fontSize:"10px",color:G.mut}},"Initial − Vendu − Sortant + Entrant = Disponible")
         ),
-        stInfo(mag).length===0?
-          h('div',{style:{padding:"25px",textAlign:"center",color:"#333",fontSize:"12px"}},"Aucun stock."):
+        stInfo(mag).length===0?h('div',{style:{padding:"25px",textAlign:"center",color:"#333",fontSize:"12px"}},"Aucun stock."):
         h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
           h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
             ["Produit","Initial","Vendu","Transferts","Disponible"].map(x=>h('th',{key:x,style:tbh},x))
@@ -670,9 +749,73 @@ function Mags({db,setDb,T}){
         )
       ),
 
+      // Historique approvisionnements
+      h('div',{style:{marginBottom:"12px"}},
+        h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"7px"}},
+          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px"}},"📦 Approvisionnements ("+magApprovHist.length+")"),
+          h('button',{onClick:()=>setShowHistApprov(v=>!v),style:{fontSize:"11px",color:G.acL,background:G.acBg,border:`1px solid ${G.acBd}`,padding:"3px 10px",borderRadius:"5px",cursor:"pointer"}},showHistApprov?"▲ Masquer":"▼ Voir")
+        ),
+        showHistApprov?h('div',{style:card({overflow:"hidden",marginBottom:"8px"})},
+          magApprovHist.length===0?h('div',{style:{padding:"20px",textAlign:"center",color:"#333",fontSize:"12px"}},"Aucun approvisionnement enregistré"):
+          h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
+            h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
+              ["Date","Produit","Quantité","Type",""].map(x=>h('th',{key:x,style:tbh},x))
+            )),
+            h('tbody',null,
+              ...[...magApprovHist].sort((a,b)=>b.date.localeCompare(a.date)).map((a,i)=>
+                h('tr',{key:a.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
+                  h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},fmtDate(a.date)),
+                  h('td',{style:tbd({fontWeight:500})},a.produitNom),
+                  h('td',{style:tbd({color:G.gr,fontWeight:700})},"+ "+a.qty),
+                  h('td',{style:tbd()},h(Tag,{label:(a.type==="TRUCK"?"🚛 ":"📦 ")+a.type,color:a.type==="TRUCK"?G.am:G.ac})),
+                  h('td',{style:tbd()},
+                    h('button',{onClick:()=>{
+                      if(!confirm("Supprimer cet approvisionnement ? Le stock sera réduit."))return;
+                      // Reverse the stock addition
+                      const pid=a.produitId;
+                      const curSt=((mag&&mag.stock)||{})[pid]||0;
+                      const newSt=Math.max(0,curSt-a.qty);
+                      const newStock={...((mag&&mag.stock)||{}),[pid]:newSt};
+                      setDb(p=>({...p,
+                        magasins:p.magasins.map(m=>m.id===sel?{...m,stock:newStock}:m),
+                        approvHist:(p.approvHist||[]).filter(x=>x.id!==a.id)
+                      }));
+                      T("Approvisionnement supprimé ✓");
+                    },style:{background:"none",color:G.mut,border:`1px solid ${G.b1}`,padding:"3px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕")
+                  )
+                )
+              )
+            )
+          )
+        ):null
+      ),
+
+      // Logs de modification manuelle du stock
+      magStockLogs.length>0?h('div',{style:{marginBottom:"12px"}},
+        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",marginBottom:"7px"}},"📋 Modifications manuelles ("+magStockLogs.length+")"),
+        h('div',{style:card({overflow:"hidden"})},
+          h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
+            h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
+              ["Date","Produit","Avant","Après","Note"].map(x=>h('th',{key:x,style:tbh},x))
+            )),
+            h('tbody',null,
+              ...[...magStockLogs].sort((a,b)=>b.date.localeCompare(a.date)).flatMap((log,li)=>
+                log.changes.map((ch,ci)=>h('tr',{key:log.id+"-"+ci,className:"trh",style:{borderBottom:"1px solid #141420",background:li%2===0?"transparent":"rgba(255,255,255,.01)"}},
+                  h('td',{style:tbd({color:"#777",whiteSpace:"nowrap"})},ci===0?fmtDate(log.date):""),
+                  h('td',{style:tbd({fontWeight:500})},ch.produitNom),
+                  h('td',{style:tbd({color:G.mut})},ch.avant),
+                  h('td',{style:tbd({color:G.acL,fontWeight:600})},ch.apres),
+                  h('td',{style:tbd({fontSize:"10px"})},ci===0?h('span',{style:{color:G.am,background:G.am+"15",border:`1px solid ${G.am}33`,padding:"1px 7px",borderRadius:"10px"}},log.note):null)
+                ))
+              )
+            )
+          )
+        )
+      ):null,
+
       // Historique transferts
       magTr.length>0?h('div',{style:{marginBottom:"12px"}},
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",marginBottom:"7px"}},"↔ Historique transferts ("+magTr.length+")"),
+        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",marginBottom:"7px"}},"↔ Transferts ("+magTr.length+")"),
         h('div',{style:card({overflow:"hidden"})},
           h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
             h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
@@ -686,9 +829,7 @@ function Mags({db,setDb,T}){
                   h('td',{style:tbd({fontWeight:500})},pN(produits,t.produitId)),
                   h('td',{style:tbd({color:sortant?G.re:G.gr,fontWeight:700})},(sortant?"-":"+")+t.qty),
                   h('td',{style:tbd({fontSize:"11px"})},
-                    sortant
-                      ?h('span',{style:{color:G.re}},"↑ vers "+mN(magasins,t.versId))
-                      :h('span',{style:{color:G.gr}},"↓ de "+mN(magasins,t.deId))
+                    sortant?h('span',{style:{color:G.re}},"↑ vers "+mN(magasins,t.versId)):h('span',{style:{color:G.gr}},"↓ de "+mN(magasins,t.deId))
                   ),
                   h('td',{style:tbd()},
                     h('button',{onClick:()=>{if(!confirm("Supprimer ce transfert ?"))return;setDb(p=>({...p,transferts:(p.transferts||[]).filter(x=>x.id!==t.id)}));T("Transfert supprimé ✓");},style:{background:"none",color:G.mut,border:`1px solid ${G.b1}`,padding:"3px 7px",borderRadius:"5px",fontSize:"11px",cursor:"pointer"}},"✕")
