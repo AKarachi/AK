@@ -381,8 +381,9 @@ function Home({db,setTab}){
 
 // ── COMMANDES ────────────────────────────────────────────────────────────────
 function Cmds({db,setDb,T,setTab}){
-  const {clients,produits,magasins,commandes,transferts}=db;
-  const [form,setForm]=useState(false);
+  const {clients,produits,magasins,commandes}=db;
+  const [form,setForm]=useState(false);      // false | "rapide" | "detail"
+  const [vue,setVue]=useState("toutes");     // "toutes" | "rapides" | "detailles"
   const [nc,setNc]=useState({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[],montantDirect:""});
   const [sCli,setSCli]=useState("");
   const [sPro,setSPro]=useState("");
@@ -416,12 +417,22 @@ function Cmds({db,setDb,T,setTab}){
   function updL(pid,f,v){setNc(prev=>({...prev,lignes:prev.lignes.map(l=>{if(l.produitId!==pid)return l;const upd={...l,[f]:f==="dnote"?(v||null):(v?Number(v):null)};if(f==="up"||f==="qty"){const q=f==="qty"?Number(v)||1:l.qty;const pr=f==="up"?Number(v)||0:l.up||0;upd.amount=q&&pr?q*pr:upd.amount;}return upd;})}))}
   function updQ(pid,v){setNc(prev=>({...prev,lignes:prev.lignes.map(l=>{if(l.produitId!==pid)return l;const q=Number(v)||1;const pr=l.up||0;return{...l,qty:q,amount:q&&pr?q*pr:l.amount};})}));}
 
-  // Only show products that belong to selected warehouse
+  function doPrint(liste,titre){
+    const rows=liste.map(c=>`<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${cN(clients,c.clientId)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`).join("");
+    const total=liste.reduce((s,c)=>s+tCmd(c),0);
+    printSection(titre,`<h2>${titre} (${liste.length})</h2><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Magasin/Type</th><th>Montant</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${total.toLocaleString()} GMD</td></tr></tfoot></table>`);
+  }
+
   const magProds=mag?produits.filter(p=>(p.magasins||[]).includes(mag.id)):[];
   const fPros=magProds.filter(p=>p.nom.toLowerCase().includes(sPro.toLowerCase()));
   const fClis=[...clients].filter(c=>c.nom.toLowerCase().includes(sCli.toLowerCase())).sort((a,b)=>a.nom.localeCompare(b.nom));
-  const grandTotal=commandes.reduce((s,c)=>s+tCmd(c),0);
+  const sorted=[...commandes].sort((a,b)=>b.id-a.id);
+  const rapides=sorted.filter(c=>c.montantDirect);
+  const detailles=sorted.filter(c=>!c.montantDirect);
+  const listeVue=vue==="rapides"?rapides:vue==="detailles"?detailles:sorted;
+  const grandTotal=listeVue.reduce((s,c)=>s+tCmd(c),0);
 
+  /* ── DETAIL VIEW ── */
   if(det!==null){
     const c=commandes.find(x=>x.id===det);
     if(!c){setDet(null);return null;}
@@ -470,81 +481,144 @@ function Cmds({db,setDb,T,setTab}){
     );
   }
 
+  /* ── MAIN VIEW ── */
   return h('div',{className:"fu"},
-    h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"18px",flexWrap:"wrap",gap:"10px"}},
+
+    /* ── Header ── */
+    h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"16px",flexWrap:"wrap",gap:"10px"}},
       h('div',null,
         h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},"Commandes"),
         h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${commandes.length} commande(s)`)
       ),
-      h('div',{style:{display:"flex",gap:"8px",flexWrap:"wrap"}},
-        h(PrintBtn,{label:"Imprimer liste",onClick:()=>{
-          const sorted=[...commandes].sort((a,b)=>b.id-a.id);
-          const rows=sorted.map(c=>`<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${cN(clients,c.clientId)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`).join("");
-          const total=sorted.reduce((s,c)=>s+tCmd(c),0);
-          printSection("Liste des commandes",`<h2>Commandes (${sorted.length})</h2><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Magasin</th><th>Montant</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${total.toLocaleString()} GMD</td></tr></tfoot></table>`);
-        }}),
-        h('button',{onClick:()=>{setForm(f=>f==="rapide"?false:"rapide");},style:btn(form==="rapide"?G.ac:"#1a1a26","#fff",{border:`1px solid ${form==="rapide"?G.ac:G.b1}`,fontSize:"13px"})},(form==="rapide"?"✕ Fermer":"⚡ Rapide")),
-        h('button',{onClick:()=>{setForm(f=>f==="detail"?false:"detail");},style:btn(form==="detail"?"#7c6fcd":"#1a1a26","#fff",{border:`1px solid ${form==="detail"?"#7c6fcd":G.b1}`,fontSize:"13px"})},(form==="detail"?"✕ Fermer":"📦 Détaillé"))
-      )
+      h('button',{
+        onClick:()=>setForm(f=>f?"":false||"menu"),
+        style:btn(form?"#c0392b":G.ac,"#fff",{fontSize:"13px"})
+      },form?"✕ Fermer":"+ Nouvelle commande")
     ),
-    (form==="rapide"||form==="detail")?h('div',{className:"fu",style:{...card({padding:"16px",marginBottom:"16px"}),border:`1px solid ${form==="rapide"?G.ac:"#7c6fcd"}`}},
-      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:form==="rapide"?G.acL:"#b0a0ff",marginBottom:"12px"}},form==="rapide"?"⚡ NOUVELLE COMMANDE RAPIDE":"📦 NOUVELLE COMMANDE DÉTAILLÉE"),
-      !clients.length?h('div',{style:{color:G.re,fontSize:"12px"}},"⚠ ",h('button',{onClick:()=>setTab("cli"),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",textDecoration:"underline",fontSize:"12px"}},"Créer un client →")):
-      h('div',null,
-        // Client + Date always shown
-        h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
-          h(Lbl,{label:"Client *"},
-            h(SearchDrop,{value:sCli,onChange:v=>{setSCli(v);setNc(p=>({...p,clientId:""}));},results:fClis,onSelect:c=>{setNc(p=>({...p,clientId:c.id}));setSCli(c.nom);},selected:selCli,onClear:()=>{setNc(p=>({...p,clientId:""}));setSCli("");},placeholder:"🔍 Rechercher un client...",getLabel:c=>c.nom})
+
+    /* ── Formulaire ajout ── */
+    form?h('div',{style:{...card({padding:"16px",marginBottom:"16px"}),border:`1px solid ${G.b2}`}},
+      /* Sélecteur de type si pas encore choisi */
+      !form||form==="menu"?h('div',null,
+        h('div',{style:{fontSize:"12px",color:G.mut,marginBottom:"12px",fontWeight:600}},"Choisir le type de commande :"),
+        h('div',{style:{display:"flex",gap:"10px",flexWrap:"wrap"}},
+          h('button',{onClick:()=>setForm("rapide"),style:{...btn(G.ac,"#fff",{fontSize:"13px",padding:"10px 20px"}),display:"flex",flexDirection:"column",alignItems:"flex-start",gap:"3px",minWidth:"180px"}},
+            h('span',{style:{fontSize:"15px",fontWeight:800}},"⚡ Rapide"),
+            h('span',{style:{fontSize:"10px",opacity:.8}},"Date + montant direct")
           ),
-          h(Lbl,{label:"Date *"},h(Inp,{type:"date",value:nc.date,onChange:e=>setNc(p=>({...p,date:e.target.value}))})),
-          form==="rapide"?
-            h(Lbl,{label:"Montant (GMD) *"},h(Inp,{type:"number",value:nc.montantDirect,onChange:e=>setNc(p=>({...p,montantDirect:e.target.value})),placeholder:"0"})):
+          h('button',{onClick:()=>setForm("detail"),style:{...btn("#5a4fcf","#fff",{fontSize:"13px",padding:"10px 20px"}),display:"flex",flexDirection:"column",alignItems:"flex-start",gap:"3px",minWidth:"180px"}},
+            h('span',{style:{fontSize:"15px",fontWeight:800}},"📦 Détaillée"),
+            h('span',{style:{fontSize:"10px",opacity:.8}},"Produits + magasin")
+          )
+        )
+      ):null,
+
+      /* Formulaire Rapide */
+      form==="rapide"?h('div',null,
+        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},"⚡ NOUVELLE COMMANDE RAPIDE"),
+        !clients.length?h('div',{style:{color:G.re,fontSize:"12px"}},"⚠ ",h('button',{onClick:()=>setTab("cli"),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",textDecoration:"underline",fontSize:"12px"}},"Créer un client →")):
+        h('div',null,
+          h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
+            h(Lbl,{label:"Client *"},
+              h(SearchDrop,{value:sCli,onChange:v=>{setSCli(v);setNc(p=>({...p,clientId:""}));},results:fClis,onSelect:c=>{setNc(p=>({...p,clientId:c.id}));setSCli(c.nom);},selected:selCli,onClear:()=>{setNc(p=>({...p,clientId:""}));setSCli("");},placeholder:"🔍 Rechercher un client...",getLabel:c=>c.nom})
+            ),
+            h(Lbl,{label:"Date *"},h(Inp,{type:"date",value:nc.date,onChange:e=>setNc(p=>({...p,date:e.target.value}))})),
+            h(Lbl,{label:"Montant (GMD) *"},h(Inp,{type:"number",value:nc.montantDirect,onChange:e=>setNc(p=>({...p,montantDirect:e.target.value})),placeholder:"0"}))
+          ),
+          h('div',{style:{display:"flex",gap:"9px",marginTop:"4px"}},
+            h('button',{onClick:create,style:btn(G.ac,"#fff")},"✓ Créer"),
+            h('button',{onClick:()=>setForm("menu"),style:btn("none",G.mut,{border:`1px solid ${G.b1}`})},"← Retour")
+          )
+        )
+      ):null,
+
+      /* Formulaire Détaillé */
+      form==="detail"?h('div',null,
+        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:"#b0a0ff",marginBottom:"12px"}},"📦 NOUVELLE COMMANDE DÉTAILLÉE"),
+        !clients.length?h('div',{style:{color:G.re,fontSize:"12px"}},"⚠ ",h('button',{onClick:()=>setTab("cli"),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",textDecoration:"underline",fontSize:"12px"}},"Créer un client →")):
+        h('div',null,
+          h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
+            h(Lbl,{label:"Client *"},
+              h(SearchDrop,{value:sCli,onChange:v=>{setSCli(v);setNc(p=>({...p,clientId:""}));},results:fClis,onSelect:c=>{setNc(p=>({...p,clientId:c.id}));setSCli(c.nom);},selected:selCli,onClear:()=>{setNc(p=>({...p,clientId:""}));setSCli("");},placeholder:"🔍 Rechercher un client...",getLabel:c=>c.nom})
+            ),
+            h(Lbl,{label:"Date *"},h(Inp,{type:"date",value:nc.date,onChange:e=>setNc(p=>({...p,date:e.target.value}))})),
             h(Lbl,{label:"Magasin *"},
               h(Sel,{value:nc.magasinId,onChange:e=>setNc(p=>({...p,magasinId:e.target.value,lignes:[]}))},
                 h('option',{value:""},"— Choisir —"),
                 ...magasins.map(m=>h('option',{key:m.id,value:m.id},"🏪 "+m.nom))
               )
             )
-        ),
-        // Produits (detailed mode only)
-        form==="detail"&&nc.magasinId?h('div',null,
-          h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}},
-            h('div',{style:{fontSize:"10px",color:G.acL,textTransform:"uppercase",fontWeight:600}},"Produits — 🏪 "+(mag?mag.nom:"")),
-            h('div',{style:{fontSize:"10px",color:G.mut}},`${nc.lignes.length} sélectionné(s)`)
           ),
-          magProds.length===0?h('div',{style:{color:G.am,fontSize:"12px",padding:"8px",background:G.am+"11",borderRadius:"6px"}},"⚠ Ce magasin n'a aucun produit."):
-          h(Fragment,null,
-            h(SearchDrop,{value:sPro,onChange:v=>setSPro(v),results:fPros,onSelect:p=>{toggleP(p);setSPro("");},selected:null,onClear:()=>setSPro(""),placeholder:"🔍 Tapez un nom de produit...",getLabel:p=>p.nom,
-              getSubLabel:p=>{const d=stockDispo(mag,p.id,commandes,db.transferts||[]);const sel=nc.lignes.some(l=>l.produitId===p.id);return "Stock: "+d+(sel?" · ✓ sélectionné":"");}}),
-            nc.lignes.length>0?h('div',{style:{display:"flex",flexDirection:"column",gap:"6px",marginTop:"8px",marginBottom:"8px"}},
-              ...nc.lignes.map(ligne=>{
-                const p=produits.find(x=>x.id===ligne.produitId);if(!p)return null;
-                return h('div',{key:p.id,style:{background:G.acBg,border:`1px solid ${G.acBd}`,borderRadius:"7px",padding:"8px 11px"}},
-                  h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}},
-                    h('span',{style:{fontWeight:600,fontSize:"12px",color:"#c0beff"}},"✓ "+p.nom),
-                    h('button',{onClick:()=>toggleP(p),style:{color:G.re,background:"none",border:"none",cursor:"pointer",fontSize:"12px"}},"✕")
-                  ),
-                  h('div',{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"5px"}},
-                    ...([["Qté *","qty","number"],["Prix","up","number"],["Montant","amount","number"],["Note","dnote","text"]]).map(([l,f,t])=>
-                      h(Lbl,{key:f,label:l},h(Inp,{type:t,value:f==="qty"?ligne.qty:(ligne[f]||""),onChange:e=>f==="qty"?updQ(p.id,e.target.value):updL(p.id,f,e.target.value),placeholder:"—",style:{fontSize:"11px",padding:"4px 7px"}}))
+          nc.magasinId?h('div',null,
+            h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}},
+              h('div',{style:{fontSize:"10px",color:G.acL,textTransform:"uppercase",fontWeight:600}},"Produits — 🏪 "+(mag?mag.nom:"")),
+              h('div',{style:{fontSize:"10px",color:G.mut}},`${nc.lignes.length} sélectionné(s)`)
+            ),
+            magProds.length===0?h('div',{style:{color:G.am,fontSize:"12px",padding:"8px",background:G.am+"11",borderRadius:"6px"}},"⚠ Ce magasin n'a aucun produit."):
+            h(Fragment,null,
+              h(SearchDrop,{value:sPro,onChange:v=>setSPro(v),results:fPros,onSelect:p=>{toggleP(p);setSPro("");},selected:null,onClear:()=>setSPro(""),placeholder:"🔍 Tapez un nom de produit...",getLabel:p=>p.nom,
+                getSubLabel:p=>{const d=stockDispo(mag,p.id,commandes,db.transferts||[]);const sel=nc.lignes.some(l=>l.produitId===p.id);return "Stock: "+d+(sel?" · ✓ sélectionné":"");}}),
+              nc.lignes.length>0?h('div',{style:{display:"flex",flexDirection:"column",gap:"6px",marginTop:"8px",marginBottom:"8px"}},
+                ...nc.lignes.map(ligne=>{
+                  const p=produits.find(x=>x.id===ligne.produitId);if(!p)return null;
+                  return h('div',{key:p.id,style:{background:G.acBg,border:`1px solid ${G.acBd}`,borderRadius:"7px",padding:"8px 11px"}},
+                    h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}},
+                      h('span',{style:{fontWeight:600,fontSize:"12px",color:"#c0beff"}},"✓ "+p.nom),
+                      h('button',{onClick:()=>toggleP(p),style:{color:G.re,background:"none",border:"none",cursor:"pointer",fontSize:"12px"}},"✕")
+                    ),
+                    h('div',{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"5px"}},
+                      ...([["Qté *","qty","number"],["Prix","up","number"],["Montant","amount","number"],["Note","dnote","text"]]).map(([l,f,t])=>
+                        h(Lbl,{key:f,label:l},h(Inp,{type:t,value:f==="qty"?ligne.qty:(ligne[f]||""),onChange:e=>f==="qty"?updQ(p.id,e.target.value):updL(p.id,f,e.target.value),placeholder:"—",style:{fontSize:"11px",padding:"4px 7px"}}))
+                      )
                     )
-                  )
-                );
-              }),
-              nc.lignes.reduce((s,l)=>s+(l.amount||0),0)>0?h('div',{style:{background:G.d2,borderRadius:"7px",padding:"7px 11px",display:"flex",justifyContent:"space-between"}},
-                h('span',{style:{fontSize:"11px",color:G.mut}},`${nc.lignes.length} produit(s)`),
-                h('span',{style:{color:G.te,fontWeight:700,fontSize:"13px"}},nc.lignes.reduce((s,l)=>s+(l.amount||0),0).toLocaleString()+" GMD")
+                  );
+                }),
+                nc.lignes.reduce((s,l)=>s+(l.amount||0),0)>0?h('div',{style:{background:G.d2,borderRadius:"7px",padding:"7px 11px",display:"flex",justifyContent:"space-between"}},
+                  h('span',{style:{fontSize:"11px",color:G.mut}},`${nc.lignes.length} produit(s)`),
+                  h('span',{style:{color:G.te,fontWeight:700,fontSize:"13px"}},nc.lignes.reduce((s,l)=>s+(l.amount||0),0).toLocaleString()+" GMD")
+                ):null
               ):null
-            ):null
+            )
+          ):null,
+          h('div',{style:{display:"flex",gap:"9px",marginTop:"12px"}},
+            h('button',{onClick:create,style:btn("#5a4fcf","#fff")},"✓ Créer"),
+            h('button',{onClick:()=>setForm("menu"),style:btn("none",G.mut,{border:`1px solid ${G.b1}`})},"← Retour")
           )
-        ):null,
-        h('div',{style:{display:"flex",gap:"9px",marginTop:"12px"}},
-          h('button',{onClick:create,style:btn(G.ac,"#fff")},"Créer la commande"),
-          h('button',{onClick:()=>{setForm(false);setSCli("");setSPro("");},style:btn("none",G.mut,{border:`1px solid ${G.b1}`})},"Annuler")
         )
-      )
+      ):null
     ):null,
+
+    /* ── Onglets de filtre + boutons imprimer ── */
+    commandes.length>0?h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px",flexWrap:"wrap",gap:"8px"}},
+      /* Onglets */
+      h('div',{style:{display:"flex",gap:"4px",background:G.d2,borderRadius:"8px",padding:"3px"}},
+        [
+          ["toutes","Toutes",sorted.length,null],
+          ["rapides","⚡ Rapides",rapides.length,"#e67e22"],
+          ["detailles","📦 Détaillées",detailles.length,"#8e44ad"]
+        ].map(([v,label,count,col])=>
+          h('button',{key:v,onClick:()=>setVue(v),style:{
+            background:vue===v?(col||G.ac):"transparent",
+            color:vue===v?"#fff":G.mut,
+            border:"none",borderRadius:"6px",padding:"5px 12px",
+            cursor:"pointer",fontSize:"12px",fontWeight:vue===v?700:400,
+            transition:"all .15s"
+          }},`${label} (${count})`)
+        )
+      ),
+      /* Bouton imprimer contextuel */
+      h(PrintBtn,{
+        label:vue==="rapides"?"🖨 Rapides":vue==="detailles"?"🖨 Détaillées":"🖨 Toutes",
+        onClick:()=>doPrint(
+          listeVue,
+          vue==="rapides"?"Commandes Rapides":vue==="detailles"?"Commandes Détaillées":"Toutes les Commandes"
+        )
+      })
+    ):null,
+
+    /* ── Table ── */
     commandes.length===0?h(EmptyState,{icon:"🧾",msg:"Aucune commande"}):
+    listeVue.length===0?h('div',{style:{textAlign:"center",color:G.mut,padding:"30px",fontSize:"13px"}},"Aucune commande dans cette catégorie"):
     h('div',{style:card({overflow:"hidden"})},
       h('div',{style:{overflowX:"auto"}},
         h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
@@ -552,7 +626,7 @@ function Cmds({db,setDb,T,setTab}){
             ["N°","Date","Client","Magasin","Produits","Montant",""].map(x=>h('th',{key:x,style:tbh},x))
           )),
           h('tbody',null,
-            ...[...commandes].sort((a,b)=>b.id-a.id).map((c,i)=>{
+            ...listeVue.map((c,i)=>{
               const tot=tCmd(c);
               return h('tr',{key:c.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
                 h('td',{style:tbd({color:G.dim,fontWeight:700})},`#${c.id}`),
@@ -574,7 +648,7 @@ function Cmds({db,setDb,T,setTab}){
                 )
               );
             }),
-            h(TotalRow,{cols:6,label:`${commandes.length} commande(s)`,amount:grandTotal})
+            h(TotalRow,{cols:6,label:`${listeVue.length} commande(s)`,amount:grandTotal})
           )
         )
       )
