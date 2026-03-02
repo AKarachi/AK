@@ -809,9 +809,7 @@ function Clis({db,setDb,T}){
           h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:dette>0?G.re:dette<0?G.gr:G.dim}},
             dette===0?"✓ Soldé":dette.toLocaleString()+" GMD"
           ),
-          dette!==0?h('div',{style:{fontSize:"11px",color:dette>0?G.re:G.gr,marginTop:"4px",fontWeight:600}},
-            dette>0?"Le client me doit":"Je dois au client"
-          ):null
+          null
         )
       ),
 
@@ -902,13 +900,8 @@ function Clis({db,setDb,T}){
             h('td',{style:tbd()},h('span',{onClick:()=>setDet(c.id),style:{padding:"2px 7px",background:G.acBg,border:`1px solid ${G.acBd}`,borderRadius:"6px",color:G.acL,fontSize:"11px",cursor:"pointer"}},"🧾 "+c.nc)),
             h('td',{style:tbd({color:c.tot>0?G.te:"#333",fontWeight:c.tot>0?600:400})},c.tot>0?c.tot.toLocaleString()+" GMD":"—"),
             h('td',{style:tbd()},
-              h('div',null,
-                h('span',{style:{fontWeight:700,color:c.dette>0?G.re:c.dette<0?G.gr:G.dim}},
-                  c.dette===0?"✓ Soldé":c.dette.toLocaleString()+" GMD"
-                ),
-                c.dette!==0?h('div',{style:{fontSize:"10px",color:c.dette>0?G.re:G.gr,marginTop:"2px"}},
-                  c.dette>0?"Le client me doit":"Je dois"
-                ):null
+              h('span',{style:{fontWeight:700,color:c.dette>0?G.re:c.dette<0?G.gr:G.dim}},
+                c.dette===0?"✓ Soldé":c.dette.toLocaleString()+" GMD"
               )
             ),
             h('td',{style:tbd({display:"flex",gap:"5px"})},
