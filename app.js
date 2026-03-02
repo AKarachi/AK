@@ -807,12 +807,10 @@ function Clis({db,setDb,T}){
         h('div',{style:{...card({padding:"14px 16px"}),border:`1px solid ${dette>0?G.re+"55":dette<0?G.gr+"55":G.b1}`}},
           h('div',{style:{fontSize:"10px",color:G.mut,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}},"💸 Dette"),
           h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:dette>0?G.re:dette<0?G.gr:G.dim}},
-            dette===0?"✓ Soldé":
-            dette>0?dette.toLocaleString()+" GMD":
-            h('span',null,"Je dois "+Math.abs(dette).toLocaleString()+" GMD")
+            dette===0?"✓ Soldé":dette.toLocaleString()+" GMD"
           ),
-          dette!==0?h('div',{style:{fontSize:"10px",color:G.mut,marginTop:"4px"}},
-            dette>0?"🔴 Le client vous doit":"🟢 Vous devez au client"
+          dette!==0?h('div',{style:{fontSize:"11px",color:dette>0?G.re:G.gr,marginTop:"4px",fontWeight:600}},
+            dette>0?"Le client me doit":"Je dois au client"
           ):null
         )
       ),
@@ -904,10 +902,13 @@ function Clis({db,setDb,T}){
             h('td',{style:tbd()},h('span',{onClick:()=>setDet(c.id),style:{padding:"2px 7px",background:G.acBg,border:`1px solid ${G.acBd}`,borderRadius:"6px",color:G.acL,fontSize:"11px",cursor:"pointer"}},"🧾 "+c.nc)),
             h('td',{style:tbd({color:c.tot>0?G.te:"#333",fontWeight:c.tot>0?600:400})},c.tot>0?c.tot.toLocaleString()+" GMD":"—"),
             h('td',{style:tbd()},
-              h('span',{style:{fontWeight:700,color:c.dette>0?G.re:c.dette<0?G.gr:G.dim},title:c.dette>0?"Le client vous doit":c.dette<0?"Vous devez au client":""},
-                c.dette===0?"✓ Soldé":
-                c.dette>0?"🔴 "+c.dette.toLocaleString()+" GMD":
-                "🟢 "+Math.abs(c.dette).toLocaleString()+" GMD"
+              h('div',null,
+                h('span',{style:{fontWeight:700,color:c.dette>0?G.re:c.dette<0?G.gr:G.dim}},
+                  c.dette===0?"✓ Soldé":c.dette.toLocaleString()+" GMD"
+                ),
+                c.dette!==0?h('div',{style:{fontSize:"10px",color:c.dette>0?G.re:G.gr,marginTop:"2px"}},
+                  c.dette>0?"Le client me doit":"Je dois"
+                ):null
               )
             ),
             h('td',{style:tbd({display:"flex",gap:"5px"})},
