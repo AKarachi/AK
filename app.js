@@ -927,27 +927,48 @@ function Pros({db,setDb,T}){
   const [search,setSearch]=useState("");
   const [fMag,setFMag]=useState("");
   const [form,setForm]=useState(false);
-  const [np,setNp]=useState({nom:"",cat:"",magasinId:"",type:"TRUCK"});
+  // np.magTypes = { magasinId: "TRUCK"|"CONTAINER"|null }  (null = coché mais pas de type)
+  const [np,setNp]=useState({nom:"",cat:"",magTypes:{}});
   const [ed,setEd]=useState(null);
   const [ev,setEv]=useState("");
 
+  function toggleMag(magId){
+    setNp(p=>{
+      const mt={...p.magTypes};
+      if(mt[magId]!==undefined) delete mt[magId];
+      else mt[magId]="TRUCK";
+      return{...p,magTypes:mt};
+    });
+  }
+  function setType(magId,type){
+    setNp(p=>({...p,magTypes:{...p.magTypes,[magId]:type}}));
+  }
+
   function add(){
     if(!np.nom.trim())return T("Nom requis",true);
-    if(!np.magasinId)return T("Sélectionnez un magasin",true);
-    const magId=Number(np.magasinId);
-    // Check if product name already exists
-    const existing=produits.find(p=>p.nom===np.nom.trim().toUpperCase());
+    const selectedMags=Object.keys(np.magTypes).map(Number);
+    if(!selectedMags.length)return T("Cochez au moins un magasin",true);
+    const nomUp=np.nom.trim().toUpperCase();
+    const existing=produits.find(p=>p.nom===nomUp);
+    const date=new Date().toISOString().slice(0,10);
     if(existing){
-      // Product exists — just add this warehouse to its magasins list
-      if((existing.magasins||[]).includes(magId))return T("Ce produit existe déjà dans ce magasin",true);
-      setDb(p=>({...p,produits:p.produits.map(x=>x.id===existing.id?{...x,magasins:[...(x.magasins||[]),magId],approvisionnements:[...(x.approvisionnements||[]),{magasinId:magId,type:np.type,date:new Date().toISOString().slice(0,10)}]}:x)}));
-      T("Produit ajouté au magasin !");
+      const newMags=[...(existing.magasins||[])];
+      const newApprov=[...(existing.approvisionnements||[])];
+      let added=0;
+      selectedMags.forEach(mid=>{
+        if(!newMags.includes(mid)){newMags.push(mid);added++;}
+        newApprov.push({magasinId:mid,type:np.magTypes[mid],date});
+      });
+      if(!added)return T("Ce produit existe déjà dans tous ces magasins",true);
+      setDb(p=>({...p,produits:p.produits.map(x=>x.id===existing.id?{...x,magasins:newMags,approvisionnements:newApprov}:x)}));
+      T(`Produit mis à jour dans ${added} magasin(s) !`);
     } else {
       const id=gid(produits);
-      setDb(p=>({...p,produits:[...p.produits,{id,nom:np.nom.trim().toUpperCase(),cat:np.cat.trim(),magasins:[magId],approvisionnements:[{magasinId:magId,type:np.type,date:new Date().toISOString().slice(0,10)}]}]}));
+      const approv=selectedMags.map(mid=>({magasinId:mid,type:np.magTypes[mid],date}));
+      setDb(p=>({...p,produits:[...p.produits,{id,nom:nomUp,cat:np.cat.trim(),magasins:selectedMags,approvisionnements:approv}]}));
       T("Produit créé !");
     }
-    setNp({nom:"",cat:"",magasinId:"",type:"TRUCK"});setForm(false);
+    setNp({nom:"",cat:"",magTypes:{}});setForm(false);
   }
   function del(id){
     if(commandes.some(c=>c.lignes.some(l=>l.produitId===id)))return T("Produit utilisé dans une commande",true);
@@ -965,6 +986,11 @@ function Pros({db,setDb,T}){
     return true;
   });
 
+  const chk=(checked,onChange,label)=>h('label',{style:{display:"flex",alignItems:"center",gap:"6px",cursor:"pointer",userSelect:"none"}},
+    h('input',{type:"checkbox",checked,onChange,style:{width:"14px",height:"14px",accentColor:G.ac}}),
+    h('span',{style:{fontSize:"12px",color:G.txt}},label)
+  );
+
   return h('div',{className:"fu"},
     h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"16px",flexWrap:"wrap",gap:"9px"}},
       h('div',null,
@@ -977,25 +1003,38 @@ function Pros({db,setDb,T}){
     // Add form
     form?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"14px"}),border:`1px solid ${G.ac}`}},
       h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},"NOUVEAU PRODUIT"),
-      h('div',{style:{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:"8px",marginBottom:"10px"}},
+      // Nom + Cat
+      h('div',{style:{display:"grid",gridTemplateColumns:"2fr 1fr",gap:"8px",marginBottom:"14px"}},
         h(Lbl,{label:"Nom du produit *"},h(Inp,{value:np.nom,onChange:e=>setNp(p=>({...p,nom:e.target.value})),placeholder:"Ex: RICE 50KG"})),
-        h(Lbl,{label:"Catégorie"},h(Inp,{value:np.cat,onChange:e=>setNp(p=>({...p,cat:e.target.value})),placeholder:"Ex: Céréales"})),
-        h(Lbl,{label:"Magasin *"},
-          h(Sel,{value:np.magasinId,onChange:e=>setNp(p=>({...p,magasinId:e.target.value}))},
-            h('option',{value:""},"— Choisir —"),
-            ...magasins.map(m=>h('option',{key:m.id,value:m.id},m.nom))
-          )
-        ),
-        h(Lbl,{label:"Type d'approvisionnement"},
-          h(Sel,{value:np.type,onChange:e=>setNp(p=>({...p,type:e.target.value}))},
-            h('option',{value:"TRUCK"},"🚛 TRUCK"),
-            h('option',{value:"CONTAINER"},"📦 CONTAINER")
-          )
-        )
+        h(Lbl,{label:"Catégorie"},h(Inp,{value:np.cat,onChange:e=>setNp(p=>({...p,cat:e.target.value})),placeholder:"Ex: Céréales"}))
       ),
-      h('div',{style:{display:"flex",gap:"8px"}},
+      // Magasins checkboxes with type per warehouse
+      h(Lbl,{label:"Magasins & type d'approvisionnement *"},
+        magasins.length===0
+          ?h('div',{style:{color:G.mut,fontSize:"12px"}},"Aucun magasin créé.")
+          :h('div',{style:{display:"flex",flexDirection:"column",gap:"8px",marginTop:"4px"}},
+            ...magasins.map(m=>{
+              const checked=np.magTypes[m.id]!==undefined;
+              const type=np.magTypes[m.id]||"TRUCK";
+              return h('div',{key:m.id,style:{background:G.d2,borderRadius:"7px",padding:"9px 12px",border:`1px solid ${checked?G.acBd:G.b1}`}},
+                h('div',{style:{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px"}},
+                  chk(checked,()=>toggleMag(m.id),"🏪 "+m.nom),
+                  checked?h('div',{style:{display:"flex",gap:"6px"}},
+                    h('button',{onClick:()=>setType(m.id,"TRUCK"),style:{...btn(type==="TRUCK"?G.am:"none",type==="TRUCK"?"#000":G.mut,{border:`1px solid ${type==="TRUCK"?G.am:G.b1}`,fontSize:"11px",padding:"3px 10px"})}},
+                      "🚛 TRUCK"
+                    ),
+                    h('button',{onClick:()=>setType(m.id,"CONTAINER"),style:{...btn(type==="CONTAINER"?G.ac:"none",type==="CONTAINER"?"#fff":G.mut,{border:`1px solid ${type==="CONTAINER"?G.ac:G.b1}`,fontSize:"11px",padding:"3px 10px"})}},
+                      "📦 CONTAINER"
+                    )
+                  ):null
+                )
+              );
+            })
+          )
+      ),
+      h('div',{style:{display:"flex",gap:"8px",marginTop:"14px"}},
         h('button',{onClick:add,style:btn(G.ac,"#fff")},"Créer"),
-        h('button',{onClick:()=>setForm(false),style:btn("none",G.mut,{border:`1px solid ${G.b1}`})},"Annuler")
+        h('button',{onClick:()=>{setForm(false);setNp({nom:"",cat:"",magTypes:{}});},style:btn("none",G.mut,{border:`1px solid ${G.b1}`})},"Annuler")
       )
     ):null,
 
