@@ -60,8 +60,8 @@ function printSection(title, contentHtml){
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
       body { font-family: Arial, sans-serif; font-size: 12px; color: #000; background:#fff; padding: 20px; }
-      .header { display:flex; justify-content:center; align-items:center; padding-bottom:12px; border-bottom:2.5px solid #000; margin-bottom:16px; }
-      .header img { height:70px; object-fit:contain; }
+      .header { display:block; text-align:center; padding-bottom:12px; border-bottom:2.5px solid #000; margin-bottom:16px; }
+      .header img { height:70px; width:auto; object-fit:contain; display:inline-block; vertical-align:middle; transform:none; }
       .header-info .name { font-family: Arial Black, sans-serif; font-weight:900; font-size:24px; }
       .header-info .sub { font-size:11px; color:#333; margin-top:3px; }
       h2 { font-size:15px; margin-bottom:10px; border-bottom:1px solid #ccc; padding-bottom:5px; }
