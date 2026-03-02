@@ -60,7 +60,7 @@ function EditableDate({value,onChange}){
     )
   );
 }
-
+function Lbl({label,children,style:s}){
   return h('div',{style:s},
     h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"4px"}},label),
     children
