@@ -196,12 +196,12 @@ function Home({db,setTab}){
       h('div',{style:{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:"10px",marginBottom:"18px"}},
         h('div',null,
           h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},`Commande #${c.id}`),
-          h('div',{style:{display:"flex",alignItems:"center",gap:"6px",marginTop:"3px"}},
-            h('span',{style:{color:G.dim,fontSize:"12px",fontWeight:500}},fmtDate(c.date)),
-            h('label',{style:{display:"flex",alignItems:"center",gap:"4px",cursor:"pointer"}},
-              h('input',{type:"date",value:c.date,onChange:e=>{const v=e.target.value;if(v)setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}));},style:{opacity:0,position:"absolute",width:"1px",height:"1px"}}),
-              h('span',{style:{fontSize:"10px",color:G.ac,cursor:"pointer",textDecoration:"underline",textDecorationColor:G.acBd}},"✏")
-            )
+          h('div',{style:{display:"flex",alignItems:"center",gap:"8px",marginTop:"5px"}},
+            h('span',{style:{color:G.mut,fontSize:"11px"}},"📅 Date :"),
+            h('input',{type:"date",value:c.date,
+              onChange:e=>{const v=e.target.value;if(v)setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}));T("Date modifiée ✓");},
+              style:{background:"#1a1a26",border:"1px solid #2a2a3a",color:"#e2e0db",padding:"4px 8px",borderRadius:"6px",fontSize:"12px",fontFamily:"inherit",cursor:"pointer"}
+            })
           )
         ),
         tot>0?h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.te}},tot.toLocaleString()+" GMD"):null
@@ -362,12 +362,12 @@ function Cmds({db,setDb,T,setTab}){
       h('div',{style:{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:"10px",marginBottom:"18px"}},
         h('div',null,
           h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},`Commande #${c.id}`),
-          h('div',{style:{display:"flex",alignItems:"center",gap:"6px",marginTop:"3px"}},
-            h('span',{style:{color:G.dim,fontSize:"12px",fontWeight:500}},fmtDate(c.date)),
-            h('label',{style:{display:"flex",alignItems:"center",gap:"4px",cursor:"pointer"}},
-              h('input',{type:"date",value:c.date,onChange:e=>{const v=e.target.value;if(v)setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}));},style:{opacity:0,position:"absolute",width:"1px",height:"1px"}}),
-              h('span',{style:{fontSize:"10px",color:G.ac,cursor:"pointer",textDecoration:"underline",textDecorationColor:G.acBd}},"✏")
-            )
+          h('div',{style:{display:"flex",alignItems:"center",gap:"8px",marginTop:"5px"}},
+            h('span',{style:{color:G.mut,fontSize:"11px"}},"📅 Date :"),
+            h('input',{type:"date",value:c.date,
+              onChange:e=>{const v=e.target.value;if(v)setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}));T("Date modifiée ✓");},
+              style:{background:"#1a1a26",border:"1px solid #2a2a3a",color:"#e2e0db",padding:"4px 8px",borderRadius:"6px",fontSize:"12px",fontFamily:"inherit",cursor:"pointer"}
+            })
           )
         ),
         tot>0?h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.te}},tot.toLocaleString()+" GMD"):null
