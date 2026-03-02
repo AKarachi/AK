@@ -879,6 +879,8 @@ function Clis({db,setDb,T}){
   const [ev,setEv]=useState("");
   const [editPaie,setEditPaie]=useState(false);
   const [newPaie,setNewPaie]=useState({});
+  const [editNom,setEditNom]=useState(false);
+  const [newNom,setNewNom]=useState("");
 
   function add(){if(!nom.trim())return T("Nom requis",true);const id=gid(clients);setDb(p=>({...p,clients:[...p.clients,{id,nom:nom.trim().toUpperCase(),paiements:[]}]}));setNom("");setForm(false);T("Client ajouté !");}
   function del(id){if(commandes.some(c=>c.clientId===id))return T("Ce client a des commandes",true);setDb(p=>({...p,clients:p.clients.filter(c=>c.id!==id)}));T("Supprimé");}
@@ -904,10 +906,19 @@ function Clis({db,setDb,T}){
     const dette=totalCmds-totalPaie;
 
     return h('div',{className:"fu"},
-      h('button',{onClick:()=>{setDet(null);setEditPaie(false);},style:{color:G.acL,background:"none",border:"none",cursor:"pointer",fontSize:"13px",marginBottom:"16px"}},"← Retour"),
+      h('button',{onClick:()=>{setDet(null);setEditPaie(false);setEditNom(false);},style:{color:G.acL,background:"none",border:"none",cursor:"pointer",fontSize:"13px",marginBottom:"16px"}},"← Retour"),
       h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"16px",flexWrap:"wrap",gap:"10px"}},
         h('div',null,
-          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"22px"}},cl.nom),
+          editNom
+            ?h('div',{style:{display:"flex",gap:"7px",alignItems:"center"}},
+                h('input',{autoFocus:true,value:newNom,onChange:e=>setNewNom(e.target.value),onKeyDown:e=>{if(e.key==="Enter"){if(newNom.trim())setDb(p=>({...p,clients:p.clients.map(c=>c.id===det?{...c,nom:newNom.trim().toUpperCase()}:c)}));setEditNom(false);T("Nom modifié ✓");}if(e.key==="Escape")setEditNom(false);},style:{...IS,fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",width:"220px"}}),
+                h('button',{onClick:()=>{if(newNom.trim())setDb(p=>({...p,clients:p.clients.map(c=>c.id===det?{...c,nom:newNom.trim().toUpperCase()}:c)}));setEditNom(false);T("Nom modifié ✓");},style:btn(G.ac,"#fff",{padding:"5px 12px",fontSize:"12px"})},"✓"),
+                h('button',{onClick:()=>setEditNom(false),style:btn("none",G.mut,{border:`1px solid ${G.b1}`,padding:"5px 9px",fontSize:"12px"})},"✕")
+              )
+            :h('div',{style:{display:"flex",alignItems:"center",gap:"10px"}},
+                h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"22px"}},cl.nom),
+                h('button',{onClick:()=>{setNewNom(cl.nom);setEditNom(true);},style:{background:"#2a2a3a",color:G.dim,border:"none",cursor:"pointer",padding:"3px 8px",borderRadius:"5px",fontSize:"11px"}},"✏")
+              ),
           h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${cmds.length} commande(s) · ${paiements.length} paiement(s)`)
         ),
         h('button',{onClick:()=>setEditPaie(v=>!v),style:btn(G.gr,"#fff",{fontSize:"13px"})},"+ Ajouter un paiement")
