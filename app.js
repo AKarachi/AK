@@ -383,7 +383,6 @@ function Home({db,setTab}){
 function Cmds({db,setDb,T,setTab}){
   const {clients,produits,magasins,commandes,transferts}=db;
   const [form,setForm]=useState(false);
-  const [mode,setMode]=useState("rapide"); // "rapide" | "detail"
   const [nc,setNc]=useState({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[],montantDirect:""});
   const [sCli,setSCli]=useState("");
   const [sPro,setSPro]=useState("");
@@ -396,7 +395,7 @@ function Cmds({db,setDb,T,setTab}){
     if(!cid&&sCli){const m=clients.filter(c=>c.nom.toLowerCase()===sCli.toLowerCase());if(m.length===1)cid=m[0].id;}
     if(!cid)return T("Sélectionnez un client dans la liste",true);
     const id=gid(commandes);
-    if(mode==="rapide"){
+    if(form==="rapide"){
       const montant=Number(nc.montantDirect);
       if(!montant||montant<=0)return T("Montant invalide",true);
       setDb(p=>({...p,commandes:[...p.commandes,{id,clientId:Number(cid),magasinId:null,date:nc.date,lignes:[{produitId:null,qty:1,up:montant,amount:montant,dnote:null}],montantDirect:montant}]}));
@@ -477,35 +476,28 @@ function Cmds({db,setDb,T,setTab}){
         h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},"Commandes"),
         h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${commandes.length} commande(s)`)
       ),
-      h('div',{style:{display:"flex",gap:"8px"}},
-        h(PrintBtn,{label:"Imprimer",onClick:()=>{
-          const rows=filtered.map(c=>`<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${cN(clients,c.clientId)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`).join("");
-          const total=filtered.reduce((s,c)=>s+tCmd(c),0);
-          printSection("Liste des commandes",`<h2>Commandes (${filtered.length})</h2><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Magasin</th><th>Montant</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${total.toLocaleString()} GMD</td></tr></tfoot></table>`);
+      h('div',{style:{display:"flex",gap:"8px",flexWrap:"wrap"}},
+        h(PrintBtn,{label:"Imprimer liste",onClick:()=>{
+          const sorted=[...commandes].sort((a,b)=>b.id-a.id);
+          const rows=sorted.map(c=>`<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${cN(clients,c.clientId)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`).join("");
+          const total=sorted.reduce((s,c)=>s+tCmd(c),0);
+          printSection("Liste des commandes",`<h2>Commandes (${sorted.length})</h2><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Magasin</th><th>Montant</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${total.toLocaleString()} GMD</td></tr></tfoot></table>`);
         }}),
-        h('button',{onClick:()=>setForm(v=>!v),style:btn(G.ac,"#fff")},form?"✕ Fermer":"+ Nouvelle commande")
+        h('button',{onClick:()=>{setForm(f=>f==="rapide"?false:"rapide");},style:btn(form==="rapide"?G.ac:"#1a1a26","#fff",{border:`1px solid ${form==="rapide"?G.ac:G.b1}`,fontSize:"13px"})},(form==="rapide"?"✕ Fermer":"⚡ Rapide")),
+        h('button',{onClick:()=>{setForm(f=>f==="detail"?false:"detail");},style:btn(form==="detail"?"#7c6fcd":"#1a1a26","#fff",{border:`1px solid ${form==="detail"?"#7c6fcd":G.b1}`,fontSize:"13px"})},(form==="detail"?"✕ Fermer":"📦 Détaillé"))
       )
     ),
-    form?h('div',{className:"fu",style:{...card({padding:"16px",marginBottom:"16px"}),border:`1px solid ${G.ac}`}},
-      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},"NOUVELLE COMMANDE"),
-      // Mode switcher
-      h('div',{style:{display:"flex",gap:"6px",marginBottom:"14px"}},
-        h('button',{onClick:()=>setMode("rapide"),style:{...btn(mode==="rapide"?G.ac:"none",mode==="rapide"?"#fff":G.mut,{border:`1px solid ${mode==="rapide"?G.ac:G.b1}`,fontSize:"12px",padding:"5px 14px"})}},
-          "⚡ Rapide (date + montant)"
-        ),
-        h('button',{onClick:()=>setMode("detail"),style:{...btn(mode==="detail"?G.ac:"none",mode==="detail"?"#fff":G.mut,{border:`1px solid ${mode==="detail"?G.ac:G.b1}`,fontSize:"12px",padding:"5px 14px"})}},
-          "📦 Détaillé (produits + magasin)"
-        )
-      ),
+    (form==="rapide"||form==="detail")?h('div',{className:"fu",style:{...card({padding:"16px",marginBottom:"16px"}),border:`1px solid ${form==="rapide"?G.ac:"#7c6fcd"}`}},
+      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:form==="rapide"?G.acL:"#b0a0ff",marginBottom:"12px"}},form==="rapide"?"⚡ NOUVELLE COMMANDE RAPIDE":"📦 NOUVELLE COMMANDE DÉTAILLÉE"),
       !clients.length?h('div',{style:{color:G.re,fontSize:"12px"}},"⚠ ",h('button',{onClick:()=>setTab("cli"),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",textDecoration:"underline",fontSize:"12px"}},"Créer un client →")):
       h('div',null,
         // Client + Date always shown
-        h('div',{style:{display:"grid",gridTemplateColumns:mode==="rapide"?"1fr 1fr 1fr":"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
+        h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
           h(Lbl,{label:"Client *"},
             h(SearchDrop,{value:sCli,onChange:v=>{setSCli(v);setNc(p=>({...p,clientId:""}));},results:fClis,onSelect:c=>{setNc(p=>({...p,clientId:c.id}));setSCli(c.nom);},selected:selCli,onClear:()=>{setNc(p=>({...p,clientId:""}));setSCli("");},placeholder:"🔍 Rechercher un client...",getLabel:c=>c.nom})
           ),
           h(Lbl,{label:"Date *"},h(Inp,{type:"date",value:nc.date,onChange:e=>setNc(p=>({...p,date:e.target.value}))})),
-          mode==="rapide"?
+          form==="rapide"?
             h(Lbl,{label:"Montant (GMD) *"},h(Inp,{type:"number",value:nc.montantDirect,onChange:e=>setNc(p=>({...p,montantDirect:e.target.value})),placeholder:"0"})):
             h(Lbl,{label:"Magasin *"},
               h(Sel,{value:nc.magasinId,onChange:e=>setNc(p=>({...p,magasinId:e.target.value,lignes:[]}))},
@@ -515,7 +507,7 @@ function Cmds({db,setDb,T,setTab}){
             )
         ),
         // Produits (detailed mode only)
-        mode==="detail"&&nc.magasinId?h('div',null,
+        form==="detail"&&nc.magasinId?h('div',null,
           h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}},
             h('div',{style:{fontSize:"10px",color:G.acL,textTransform:"uppercase",fontWeight:600}},"Produits — 🏪 "+(mag?mag.nom:"")),
             h('div',{style:{fontSize:"10px",color:G.mut}},`${nc.lignes.length} sélectionné(s)`)
