@@ -60,7 +60,7 @@ function printSection(title, contentHtml){
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
       body { font-family: Arial, sans-serif; font-size: 12px; color: #000; background:#fff; padding: 20px; }
-      .header { display:flex; align-items:center; gap:18px; padding-bottom:12px; border-bottom:2.5px solid #000; margin-bottom:16px; }
+      .header { display:flex; justify-content:center; align-items:center; padding-bottom:12px; border-bottom:2.5px solid #000; margin-bottom:16px; }
       .header img { height:70px; object-fit:contain; }
       .header-info .name { font-family: Arial Black, sans-serif; font-weight:900; font-size:24px; }
       .header-info .sub { font-size:11px; color:#333; margin-top:3px; }
@@ -77,11 +77,6 @@ function printSection(title, contentHtml){
     </head><body>
     <div class="header">
       <img src="${LOGO_B64}" alt="AMT"/>
-      <div class="header-info">
-        <div class="name">A.M.T. ENTERPRISE</div>
-        <div class="sub">Picton Street Banjul, The Gambia.</div>
-        <div class="sub">Mob: (+220) 7951835 / 7202290 / 7013030</div>
-      </div>
     </div>
     ${contentHtml}
     <div class="footer">Imprimé le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>
