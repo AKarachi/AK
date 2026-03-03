@@ -384,7 +384,7 @@ function Cmds({db,setDb,T,setTab}){
   const {clients,produits,magasins,commandes}=db;
   const [form,setForm]=useState(false);      // false | "rapide" | "detail"
   const [vue,setVue]=useState("toutes");     // "toutes" | "rapides" | "detailles"
-  const [nc,setNc]=useState({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[],montantDirect:""});
+  const [nc,setNc]=useState({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[],montantDirect:"",bl:""});
   const [sCli,setSCli]=useState("");
   const [sPro,setSPro]=useState("");
   const [det,setDet]=useState(null);
@@ -403,9 +403,9 @@ function Cmds({db,setDb,T,setTab}){
     } else {
       if(!nc.magasinId)return T("Sélectionnez un magasin",true);
       if(!nc.lignes.length)return T("Sélectionnez au moins un produit",true);
-      setDb(p=>({...p,commandes:[...p.commandes,{id,clientId:Number(cid),magasinId:Number(nc.magasinId),date:nc.date,lignes:nc.lignes}]}));
+      setDb(p=>({...p,commandes:[...p.commandes,{id,clientId:Number(cid),magasinId:Number(nc.magasinId),date:nc.date,lignes:nc.lignes,bl:nc.bl||null}]}));
     }
-    setNc({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[],montantDirect:""});
+    setNc({clientId:"",magasinId:"",date:new Date().toISOString().slice(0,10),lignes:[],montantDirect:"",bl:""});
     setSCli("");setSPro("");setForm(false);
     T(`Commande #${id} créée !`);
   }
@@ -549,6 +549,9 @@ function Cmds({db,setDb,T,setTab}){
               )
             )
           ),
+          h('div',{style:{marginBottom:"14px",maxWidth:"220px"}},
+            h(Lbl,{label:"N° BL"},h(Inp,{type:"text",inputMode:"numeric",pattern:"[0-9]*",value:nc.bl,onChange:e=>setNc(p=>({...p,bl:e.target.value.replace(/\D/g,"")})),placeholder:"Ex: 12345678"}))
+          ),
           nc.magasinId?h('div',null,
             h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}},
               h('div',{style:{fontSize:"10px",color:G.acL,textTransform:"uppercase",fontWeight:600}},"Produits — 🏪 "+(mag?mag.nom:"")),
@@ -623,16 +626,30 @@ function Cmds({db,setDb,T,setTab}){
       h('div',{style:{overflowX:"auto"}},
         h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
           h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
-            ["N°","Date","Client","Magasin","Produits","Montant",""].map(x=>h('th',{key:x,style:tbh},x))
+            ["N°","Date","Client","Magasin","BL","Produits","Montant",""].map(x=>h('th',{key:x,style:tbh},x))
           )),
           h('tbody',null,
             ...listeVue.map((c,i)=>{
               const tot=tCmd(c);
+              const blDup=c.bl&&listeVue.filter(x=>x.bl&&x.bl===c.bl).length>1;
               return h('tr',{key:c.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
                 h('td',{style:tbd({color:G.dim,fontWeight:700})},`#${c.id}`),
                 h('td',{style:tbd({whiteSpace:"nowrap"})},h(EditableDate,{value:c.date,onChange:v=>setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}))})),
                 h('td',{style:tbd({fontWeight:600,color:"#d0cec9"})},cN(clients,c.clientId)),
                 h('td',{style:tbd()},h(Tag,{label:"🏪 "+mN(magasins,c.magasinId)})),
+                h('td',{style:tbd({whiteSpace:"nowrap"})},
+                  c.bl?h('span',{style:{display:"inline-flex",alignItems:"center",gap:"4px",fontSize:"11px",fontWeight:700,
+                    color:blDup?"#ff6b6b":"#a0e0a0",
+                    background:blDup?"rgba(255,107,107,0.12)":"rgba(160,224,160,0.1)",
+                    border:`1px solid ${blDup?"rgba(255,107,107,0.4)":"rgba(160,224,160,0.3)"}`,
+                    padding:"2px 7px",borderRadius:"8px",cursor:blDup?"help":"default"},
+                    title:blDup?"⚠ Ce numéro BL est utilisé dans plusieurs commandes !":""
+                  },
+                    blDup?h('span',null,"⚠ "):null,
+                    "BL "+c.bl,
+                    blDup?h('span',{style:{fontSize:"9px",color:"#ff6b6b",marginLeft:"2px"}},"×"+listeVue.filter(x=>x.bl&&x.bl===c.bl).length):null
+                  ):h('span',{style:{color:G.mut,fontSize:"11px"}},"—")
+                ),
                 h('td',{style:tbd()},
                   c.montantDirect
                     ?h('span',{style:{fontSize:"10px",color:G.am,background:G.am+"15",border:`1px solid ${G.am}33`,padding:"2px 7px",borderRadius:"10px"}},"⚡ Commande rapide")
@@ -648,7 +665,7 @@ function Cmds({db,setDb,T,setTab}){
                 )
               );
             }),
-            h(TotalRow,{cols:6,label:`${listeVue.length} commande(s)`,amount:grandTotal})
+            h(TotalRow,{cols:7,label:`${listeVue.length} commande(s)`,amount:grandTotal})
           )
         )
       )
@@ -1545,3 +1562,4 @@ function Pros({db,setDb,T}){
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
 ReactDOM.createRoot(document.getElementById('root')).render(h(App,null));
+
