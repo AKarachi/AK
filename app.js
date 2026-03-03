@@ -284,10 +284,14 @@ function Home({db,setTab}){
         h('div',{style:card({padding:"12px 14px"})},h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase",marginBottom:"5px"}},"Client"),h('div',{style:{fontWeight:600}},cN(clients,c.clientId))),
         h('div',{style:card({padding:"12px 14px"})},h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase",marginBottom:"5px"}},"Magasin"),h('div',{style:{fontWeight:600,color:G.acL}},"🏪 "+mN(magasins,c.magasinId)))
       ),
-      c.bl?h('div',{style:{...card({padding:"10px 14px"}),marginBottom:"16px",display:"flex",alignItems:"center",gap:"10px"}},
-        h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase"}},"N° BL"),
-        h('span',{style:{fontSize:"13px",fontWeight:700,color:G.dim,background:G.d2,padding:"3px 10px",borderRadius:"8px",letterSpacing:"1px"}},"BL "+c.bl)
-      ):null,
+      h('div',{style:{...card({padding:"10px 14px"}),marginBottom:"16px",display:"flex",alignItems:"center",gap:"10px"}},
+        h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase",minWidth:"40px"}},"N° BL"),
+        h('input',{type:"text",inputMode:"numeric",value:c.bl||"",placeholder:"—",
+          onChange:e=>{const v=e.target.value.replace(/\D/g,"");setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,bl:v||null}:x)}));},
+          onBlur:()=>T("BL modifié ✓"),
+          style:{background:"#1a1a26",border:"1px solid #2a2a3a",color:G.dim,padding:"4px 10px",borderRadius:"8px",fontSize:"13px",fontWeight:700,fontFamily:"inherit",letterSpacing:"1px",width:"160px",outline:"none"}
+        })
+      ),
       h('div',{style:card({overflow:"hidden"})},
         h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
           h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
