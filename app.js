@@ -201,8 +201,9 @@ function App(){
   const [db,setDb]=useState(EMPTY);
   const [tab,setTab]=useState("home");
   const [toast,setToast]=useState(null);
-  useEffect(()=>{setTimeout(()=>FirebaseDB.subscribe(setDb),1500);},[]);
-  useEffect(()=>{FirebaseDB.save(db);},[db]);
+  const [loaded,setLoaded]=useState(false);
+  useEffect(()=>{setTimeout(()=>FirebaseDB.subscribe(data=>{setDb(data);setLoaded(true);}),1500);},[]);
+  useEffect(()=>{if(loaded)FirebaseDB.save(db);},[db,loaded]);
   function T(msg,err){setToast({msg,err});setTimeout(()=>setToast(null),2800);}
 
   const tabs=[
