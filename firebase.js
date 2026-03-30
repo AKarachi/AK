@@ -17,8 +17,7 @@ const EMPTY_DB = { clients: [], produits: [], magasins: [], commandes: [], trans
 let _firestore   = null;
 let _docRef      = null;
 let _ready       = false;
-let _localMode   = false;
-let _pendingSubs = []; // callbacks waiting for Firebase to be ready
+let _pendingSubs = [];
 
 function log(msg, error) {
   var prefix = "[firebase.js]";
@@ -31,9 +30,22 @@ function loadScript(src) {
     var s = document.createElement("script");
     s.src = src;
     s.onload = resolve;
-    s.onerror = function() { reject(new Error("Failed to load: " + src)); };
+    s.onerror = function() { reject(new Error("Impossible de charger: " + src)); };
     document.head.appendChild(s);
   });
+}
+
+// Affiche un message d'erreur bloquant dans la page
+function showFatalError(msg) {
+  var div = document.createElement("div");
+  div.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#0d0d1a;display:flex;align-items:center;justify-content:center;z-index:9999;";
+  div.innerHTML = '<div style="background:#1a1a26;border:1px solid #c00;border-radius:12px;padding:32px;max-width:480px;text-align:center;font-family:sans-serif;">'
+    + '<div style="font-size:32px;margin-bottom:16px;">⚠️</div>'
+    + '<div style="color:#ff6b6b;font-size:18px;font-weight:700;margin-bottom:12px;">Connexion Firebase impossible</div>'
+    + '<div style="color:#888;font-size:13px;line-height:1.6;">' + msg + '</div>'
+    + '<button onclick="location.reload()" style="margin-top:20px;background:#5b5bf6;color:#fff;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:14px;">🔄 Réessayer</button>'
+    + '</div>';
+  document.body.appendChild(div);
 }
 
 var FirebaseDB = {
@@ -50,31 +62,32 @@ var FirebaseDB = {
       var snap = await _docRef.get();
       if (!snap.exists) {
         await _docRef.set(EMPTY_DB);
-        log("New database created in Firestore.");
+        log("Nouvelle base de données créée dans Firestore.");
       }
       _ready = true;
-      log("Firebase connected. Project: " + FIREBASE_CONFIG.projectId);
+      log("Firebase connecté. Projet: " + FIREBASE_CONFIG.projectId);
 
-      // Now attach any subscriptions that were waiting
       _pendingSubs.forEach(function(cb) {
         FirebaseDB._attachSnapshot(cb);
       });
       _pendingSubs = [];
 
     } catch (err) {
-      log("Firebase init failed — switching to LOCAL mode.", err);
-      _localMode = true;
-      _ready = true;
-      // Notify pending subscribers with local data
-      _pendingSubs.forEach(function(cb) {
-        cb(FirebaseDB._loadLocal());
-      });
+      log("Échec connexion Firebase.", err);
+      showFatalError(
+        "Impossible de se connecter à Firebase.<br><br>"
+        + "<strong style='color:#fff'>Vérifiez :</strong><br>"
+        + "• Votre connexion Internet<br>"
+        + "• Que gstatic.com est accessible<br>"
+        + "• Les règles Firestore dans la console Firebase<br><br>"
+        + "<span style='color:#555;font-size:11px'>" + (err && err.message ? err.message : "") + "</span>"
+      );
+      // Ne pas appeler les subscribers — l'app reste bloquée
       _pendingSubs = [];
     }
   },
 
   _attachSnapshot: function(callback) {
-    var self = this;
     _docRef.onSnapshot(
       function(snap) {
         if (snap.exists) {
@@ -83,51 +96,37 @@ var FirebaseDB = {
         }
       },
       function(err) {
-        log("Snapshot error — switching to LOCAL mode.", err);
-        _localMode = true;
-        callback(self._loadLocal());
+        log("Erreur snapshot Firestore.", err);
+        showFatalError(
+          "La connexion à Firebase a été interrompue.<br><br>"
+          + "<span style='color:#555;font-size:11px'>" + (err && err.message ? err.message : "") + "</span>"
+        );
       }
     );
   },
 
   subscribe: function(callback) {
-    if (_ready && !_localMode && _docRef) {
-      // Firebase already ready — attach immediately
+    if (_ready && _docRef) {
       this._attachSnapshot(callback);
-    } else if (_ready && _localMode) {
-      // Already in local mode
-      callback(this._loadLocal());
     } else {
-      // Firebase still initializing — queue the callback
       _pendingSubs.push(callback);
     }
-    return function() {}; // cleanup (optional)
+    return function() {};
   },
 
   save: async function(data) {
-    if (!_ready) return;
-    if (_localMode) {
-      this._saveLocal(data);
+    if (!_ready || !_docRef) {
+      log("Save ignoré — Firebase non prêt.");
       return;
     }
     try {
       await _docRef.set(data);
     } catch (err) {
-      log("Save failed — writing to localStorage as backup.", err);
-      this._saveLocal(data);
-    }
-  },
-
-  _saveLocal: function(data) {
-    try { localStorage.setItem("sv5", JSON.stringify(data)); } catch (err) {}
-  },
-
-  _loadLocal: function() {
-    try {
-      var s = localStorage.getItem("sv5");
-      return s ? Object.assign({}, EMPTY_DB, JSON.parse(s)) : Object.assign({}, EMPTY_DB);
-    } catch(e) {
-      return Object.assign({}, EMPTY_DB);
+      log("Échec sauvegarde Firebase.", err);
+      showFatalError(
+        "Impossible de sauvegarder dans Firebase.<br><br>"
+        + "<span style='color:#555;font-size:11px'>" + (err && err.message ? err.message : "") + "</span>"
+      );
     }
   }
 };
