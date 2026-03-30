@@ -1121,6 +1121,7 @@ function Clis({db,setDb,T}){
   const [search,setSearch]=useState("");
   const [form,setForm]=useState(false);
   const [nom,setNom]=useState("");
+  const [prenom,setPrenom]=useState("");
   const [det,setDet]=useState(null);
   const [ed,setEd]=useState(null);
   const [ev,setEv]=useState("");
@@ -1131,7 +1132,7 @@ function Clis({db,setDb,T}){
   const [editPrenom,setEditPrenom]=useState(false);
   const [newPrenom,setNewPrenom]=useState("");
 
-  function add(){if(!nom.trim())return T("Nom requis",true);const id=gid(clients);setDb(p=>({...p,clients:[...p.clients,{id,nom:nom.trim().toUpperCase(),paiements:[]}]}));setNom("");setForm(false);T("Client ajouté !");}
+  function add(){if(!nom.trim())return T("Nom requis",true);const id=gid(clients);const c={id,nom:nom.trim().toUpperCase(),paiements:[]};if(prenom.trim())c.prenom=prenom.trim();setDb(p=>({...p,clients:[...p.clients,c]}));setNom("");setPrenom("");setForm(false);T("Client ajouté !");}
   function del(id){if(commandes.some(c=>c.clientId===id))return T("Ce client a des commandes",true);setDb(p=>({...p,clients:p.clients.filter(c=>c.id!==id)}));T("Supprimé");}
   function commit(id){setDb(p=>({...p,clients:p.clients.map(c=>c.id===id?{...c,nom:ev.trim().toUpperCase()}:c)}));setEd(null);}
 
@@ -1343,9 +1344,10 @@ function Clis({db,setDb,T}){
     ),
     form?h('div',{className:"fu",style:{...card({padding:"11px 13px",marginBottom:"13px"}),border:`1px solid ${G.ac}`}},
       h('div',{style:{display:"flex",gap:"7px",flexWrap:"wrap"}},
-        h(Inp,{value:nom,onChange:e=>setNom(e.target.value),placeholder:"Nom du client",style:{flex:2}}),
+        h(Inp,{value:nom,onChange:e=>setNom(e.target.value),placeholder:"Nom *",style:{flex:2},onKeyDown:e=>{if(e.key==="Enter")add();}}),
+        h(Inp,{value:prenom,onChange:e=>setPrenom(e.target.value),placeholder:"Prénom (optionnel)",style:{flex:2},onKeyDown:e=>{if(e.key==="Enter")add();}}),
         h('button',{onClick:add,style:btn(G.ac,"#fff",{padding:"7px 13px",fontSize:"13px"})},"Ajouter"),
-        h('button',{onClick:()=>setForm(false),style:btn("none",G.mut,{border:`1px solid ${G.b1}`,padding:"7px 10px",fontSize:"13px"})},"✕")
+        h('button',{onClick:()=>{setForm(false);setNom("");setPrenom("");},style:btn("none",G.mut,{border:`1px solid ${G.b1}`,padding:"7px 10px",fontSize:"13px"})},"✕")
       )
     ):null,
     h('div',{style:{display:"flex",gap:"8px",alignItems:"center",flexWrap:"wrap",marginBottom:"11px"}},
