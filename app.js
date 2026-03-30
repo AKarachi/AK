@@ -4,7 +4,8 @@ const {createElement:h,useState,useEffect,Fragment}=React;
 const EMPTY={clients:[],produits:[],magasins:[],commandes:[],transferts:[],approvHist:[],stockLogs:[]};
 function gid(a){return a.length?Math.max(...a.map(x=>x.id))+1:1;}
 function tCmd(c){return c.montantDirect||c.lignes.reduce((s,l)=>s+(l.amount||0),0);}
-function cN(cs,id){return(cs.find(c=>c.id===id)||{}).nom||"—";}
+function cN(cs,id){const c=cs.find(c=>c.id===id)||{};return c.nom?(c.prenom?c.nom+" "+c.prenom:c.nom):"—";}
+function cLabel(c){return c.prenom?c.nom+" "+c.prenom:c.nom;}
 function mN(ms,id){return(ms.find(m=>m.id===id)||{}).nom||"—";}
 function pN(ps,id){return(ps.find(p=>p.id===id)||{}).nom||"—";}
 function fmtDate(d){
@@ -349,7 +350,7 @@ function Home({db,setTab}){
       h('div',{style:{display:"grid",gridTemplateColumns:"2fr 1fr",gap:"10px"}},
         h(Lbl,{label:"Client"},h(Sel,{value:fCl,onChange:e=>setFCl(e.target.value)},
           h('option',{value:""},"Tous les clients"),
-          ...[...clients].sort((a,b)=>a.nom.localeCompare(b.nom)).map(cl=>h('option',{key:cl.id,value:cl.id},cl.nom))
+          ...[...clients].sort((a,b)=>a.nom.localeCompare(b.nom)).map(cl=>h('option',{key:cl.id,value:cl.id},cLabel(cl)))
         )),
         h(Lbl,{label:"N° BL"},h(Inp,{value:fBL,onChange:e=>setFBL(e.target.value.replace(/\D/g,"")),placeholder:"Ex: 12345678",inputMode:"numeric"}))
       ),
@@ -413,7 +414,7 @@ function Cmds({db,setDb,T,setTab}){
 
   function create(){
     let cid=nc.clientId;
-    if(!cid&&sCli){const m=clients.filter(c=>c.nom.toLowerCase()===sCli.toLowerCase());if(m.length===1)cid=m[0].id;}
+    if(!cid&&sCli){const m=clients.filter(c=>cLabel(c).toLowerCase()===sCli.toLowerCase());if(m.length===1)cid=m[0].id;}
     if(!cid)return T("Sélectionnez un client dans la liste",true);
     const id=gid(commandes);
     if(form==="rapide"){
@@ -445,7 +446,7 @@ function Cmds({db,setDb,T,setTab}){
 
   const magProds=mag?produits.filter(p=>(p.magasins||[]).includes(mag.id)):[];
   const fPros=magProds.filter(p=>p.nom.toLowerCase().includes(sPro.toLowerCase()));
-  const fClis=[...clients].filter(c=>c.nom.toLowerCase().includes(sCli.toLowerCase())).sort((a,b)=>a.nom.localeCompare(b.nom));
+  const fClis=[...clients].filter(c=>c.nom.toLowerCase().includes(sCli.toLowerCase())||(c.prenom&&c.prenom.toLowerCase().includes(sCli.toLowerCase()))).sort((a,b)=>a.nom.localeCompare(b.nom));
   const sorted=[...commandes].sort((a,b)=>b.id-a.id);
   const rapides=sorted.filter(c=>c.montantDirect);
   const detailles=sorted.filter(c=>!c.montantDirect);
@@ -540,7 +541,7 @@ function Cmds({db,setDb,T,setTab}){
         h('div',null,
           h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
             h(Lbl,{label:"Client *"},
-              h(SearchDrop,{value:sCli,onChange:v=>{setSCli(v);setNc(p=>({...p,clientId:""}));},results:fClis,onSelect:c=>{setNc(p=>({...p,clientId:c.id}));setSCli(c.nom);},selected:selCli,onClear:()=>{setNc(p=>({...p,clientId:""}));setSCli("");},placeholder:"🔍 Rechercher un client...",getLabel:c=>c.nom})
+              h(SearchDrop,{value:sCli,onChange:v=>{setSCli(v);setNc(p=>({...p,clientId:""}));},results:fClis,onSelect:c=>{setNc(p=>({...p,clientId:c.id}));setSCli(cLabel(c));},selected:selCli,onClear:()=>{setNc(p=>({...p,clientId:""}));setSCli("");},placeholder:"🔍 Rechercher un client...",getLabel:c=>cLabel(c)})
             ),
             h(Lbl,{label:"Date *"},h(Inp,{type:"date",value:nc.date,onChange:e=>setNc(p=>({...p,date:e.target.value}))})),
             h(Lbl,{label:"Montant (GMD) *"},h(Inp,{type:"number",value:nc.montantDirect,onChange:e=>setNc(p=>({...p,montantDirect:e.target.value})),placeholder:"0"}))
@@ -559,7 +560,7 @@ function Cmds({db,setDb,T,setTab}){
         h('div',null,
           h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
             h(Lbl,{label:"Client *"},
-              h(SearchDrop,{value:sCli,onChange:v=>{setSCli(v);setNc(p=>({...p,clientId:""}));},results:fClis,onSelect:c=>{setNc(p=>({...p,clientId:c.id}));setSCli(c.nom);},selected:selCli,onClear:()=>{setNc(p=>({...p,clientId:""}));setSCli("");},placeholder:"🔍 Rechercher un client...",getLabel:c=>c.nom})
+              h(SearchDrop,{value:sCli,onChange:v=>{setSCli(v);setNc(p=>({...p,clientId:""}));},results:fClis,onSelect:c=>{setNc(p=>({...p,clientId:c.id}));setSCli(cLabel(c));},selected:selCli,onClear:()=>{setNc(p=>({...p,clientId:""}));setSCli("");},placeholder:"🔍 Rechercher un client...",getLabel:c=>cLabel(c)})
             ),
             h(Lbl,{label:"Date *"},h(Inp,{type:"date",value:nc.date,onChange:e=>setNc(p=>({...p,date:e.target.value}))})),
             h(Lbl,{label:"Magasin *"},
@@ -1127,6 +1128,8 @@ function Clis({db,setDb,T}){
   const [newPaie,setNewPaie]=useState({});
   const [editNom,setEditNom]=useState(false);
   const [newNom,setNewNom]=useState("");
+  const [editPrenom,setEditPrenom]=useState(false);
+  const [newPrenom,setNewPrenom]=useState("");
 
   function add(){if(!nom.trim())return T("Nom requis",true);const id=gid(clients);setDb(p=>({...p,clients:[...p.clients,{id,nom:nom.trim().toUpperCase(),paiements:[]}]}));setNom("");setForm(false);T("Client ajouté !");}
   function del(id){if(commandes.some(c=>c.clientId===id))return T("Ce client a des commandes",true);setDb(p=>({...p,clients:p.clients.filter(c=>c.id!==id)}));T("Supprimé");}
@@ -1138,7 +1141,7 @@ function Clis({db,setDb,T}){
     const paie=(cl.paiements||[]).reduce((s,p)=>s+(p.montant||0),0);
     const dette=tot-paie;
     return{...cl,nc,tot,paie,dette};
-  }).filter(c=>!search||c.nom.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>a.nom.localeCompare(b.nom));
+  }).filter(c=>!search||(c.nom.toLowerCase().includes(search.toLowerCase())||(c.prenom&&c.prenom.toLowerCase().includes(search.toLowerCase())))).sort((a,b)=>a.nom.localeCompare(b.nom));
 
   const grandDette=stats.reduce((s,c)=>s+Math.max(0,c.dette),0);
 
@@ -1152,7 +1155,7 @@ function Clis({db,setDb,T}){
     const dette=totalCmds-totalPaie;
 
     return h('div',{className:"fu"},
-      h('button',{onClick:()=>{setDet(null);setEditPaie(false);setEditNom(false);},style:{color:G.acL,background:"none",border:"none",cursor:"pointer",fontSize:"13px",marginBottom:"16px"}},"← Retour"),
+      h('button',{onClick:()=>{setDet(null);setEditPaie(false);setEditNom(false);setEditPrenom(false);},style:{color:G.acL,background:"none",border:"none",cursor:"pointer",fontSize:"13px",marginBottom:"16px"}},"← Retour"),
       h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"16px",flexWrap:"wrap",gap:"10px"}},
         h('div',null,
           editNom
@@ -1175,7 +1178,31 @@ function Clis({db,setDb,T}){
               )
             :h('div',{style:{display:"flex",alignItems:"center",gap:"10px",marginBottom:"4px"}},
                 h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"22px"}},cl.nom),
-                h('button',{onClick:()=>{setNewNom(cl.nom);setEditNom(true);},style:{cursor:"pointer",background:"#2a2a3a",color:"#888",border:"none",padding:"4px 10px",borderRadius:"5px",fontSize:"12px",fontFamily:"inherit"}},"✏ Modifier")
+                h('button',{onClick:()=>{setNewNom(cl.nom);setEditNom(true);setEditPrenom(false);},style:{cursor:"pointer",background:"#2a2a3a",color:"#888",border:"none",padding:"4px 10px",borderRadius:"5px",fontSize:"12px",fontFamily:"inherit"}},"✏ Nom")
+              ),
+          editPrenom
+            ?h('div',{style:{display:"flex",gap:"7px",alignItems:"center",marginBottom:"4px"}},
+                h('input',{autoFocus:true,value:newPrenom,onChange:e=>setNewPrenom(e.target.value),
+                  onKeyDown:e=>{
+                    if(e.key==="Enter"){
+                      setDb(p=>({...p,clients:p.clients.map(c=>c.id===det?{...c,prenom:newPrenom.trim()?newPrenom.trim():undefined}:c)}));
+                      T("Prénom modifié ✓");setEditPrenom(false);
+                    }
+                    if(e.key==="Escape")setEditPrenom(false);
+                  },
+                  style:{background:"#1a1a26",border:"1px solid #888",color:"#e2e0db",padding:"5px 10px",borderRadius:"6px",fontSize:"14px",fontFamily:"inherit",width:"200px",outline:"none"},placeholder:"Prénom (optionnel)"
+                }),
+                h('button',{onClick:()=>{
+                  setDb(p=>({...p,clients:p.clients.map(c=>c.id===det?{...c,prenom:newPrenom.trim()?newPrenom.trim():undefined}:c)}));
+                  T("Prénom modifié ✓");setEditPrenom(false);
+                },style:{cursor:"pointer",background:"#5b5bf6",color:"#fff",border:"none",padding:"5px 12px",borderRadius:"6px",fontSize:"13px",fontFamily:"inherit"}},"✓"),
+                h('button',{onClick:()=>setEditPrenom(false),style:{cursor:"pointer",background:"none",color:"#888",border:"1px solid #1e1e2e",padding:"5px 9px",borderRadius:"6px",fontSize:"13px",fontFamily:"inherit"}},"✕")
+              )
+            :h('div',{style:{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}},
+                cl.prenom
+                  ?h('div',{style:{fontSize:"15px",color:G.dim}},cl.prenom)
+                  :h('div',{style:{fontSize:"12px",color:G.mut,fontStyle:"italic"}},"Prénom non renseigné"),
+                h('button',{onClick:()=>{setNewPrenom(cl.prenom||"");setEditPrenom(true);setEditNom(false);},style:{cursor:"pointer",background:"#2a2a3a",color:"#888",border:"none",padding:"3px 8px",borderRadius:"5px",fontSize:"11px",fontFamily:"inherit"}},cl.prenom?"✏ Prénom":"+ Prénom")
               ),
           h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${cmds.length} commande(s) · ${paiements.length} paiement(s)`)
         ),
@@ -1184,8 +1211,9 @@ function Clis({db,setDb,T}){
             const cmdRows=cmds.map(c=>`<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`).join("");
             const paieRows=paiements.map(p=>`<tr><td>${fmtDate(p.date)}</td><td style="text-align:right;color:#090">${p.montant.toLocaleString()} GMD</td><td>${p.type||"cash"}</td></tr>`).join("");
             const detteColor=dette>0?"#c00":dette<0?"#090":"#999";
-            printSection(`Profil — ${cl.nom}`,`
-              <h2>${cl.nom}</h2>
+            const fullName=cLabel(cl);
+            printSection(`Profil — ${fullName}`,`
+              <h2>${fullName}</h2>
               <table style="width:auto;margin-bottom:14px">
                 <tr><th>Total commandes</th><td style="text-align:right">${totalCmds.toLocaleString()} GMD</td></tr>
                 <tr><th>Total payé</th><td style="text-align:right">${totalPaie.toLocaleString()} GMD</td></tr>
@@ -1306,7 +1334,7 @@ function Clis({db,setDb,T}){
       ),
       h('div',{style:{display:"flex",gap:"8px"}},
         h(PrintBtn,{label:"Imprimer liste",onClick:()=>{
-          const rows=stats.map(c=>`<tr><td>${c.nom}</td><td style="text-align:center">${c.nc}</td><td style="text-align:right">${c.tot>0?c.tot.toLocaleString()+" GMD":"—"}</td><td style="text-align:right;color:${c.dette>0?"#c00":c.dette<0?"#090":"#999"};font-weight:${c.dette!==0?700:400}">${c.dette===0?"✓ Soldé":c.dette.toLocaleString()+" GMD"}</td></tr>`).join("");
+          const rows=stats.map(c=>`<tr><td>${cLabel(c)}</td><td style="text-align:center">${c.nc}</td><td style="text-align:right">${c.tot>0?c.tot.toLocaleString()+" GMD":"—"}</td><td style="text-align:right;color:${c.dette>0?"#c00":c.dette<0?"#090":"#999"};font-weight:${c.dette!==0?700:400}">${c.dette===0?"✓ Soldé":c.dette.toLocaleString()+" GMD"}</td></tr>`).join("");
           const totalDette=stats.reduce((s,c)=>s+Math.max(0,c.dette),0);
           printSection("Liste des clients",`<h2>Clients (${stats.length})</h2><table><thead><tr><th>Nom</th><th>Commandes</th><th>Total achats</th><th>Dette</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total dettes</td><td style="font-weight:700;color:#c00">${totalDette>0?totalDette.toLocaleString()+" GMD":"✓ 0"}</td></tr></tfoot></table>`);
         }}),
@@ -1334,7 +1362,9 @@ function Clis({db,setDb,T}){
           ...stats.map((c,i)=>h('tr',{key:c.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
             h('td',{style:tbd({fontWeight:500}),onDoubleClick:()=>{setEd(c.id);setEv(c.nom);}},
               ed===c.id?h('input',{className:"ci",value:ev,autoFocus:true,onChange:e=>setEv(e.target.value),onBlur:()=>commit(c.id),onKeyDown:e=>{if(e.key==="Enter")commit(c.id);if(e.key==="Escape")setEd(null);}}):
-              h('span',{onClick:()=>setDet(c.id),style:{cursor:"pointer",color:G.acL,textDecoration:"underline",textDecorationColor:G.acBd}},c.nom)
+              h('span',{onClick:()=>setDet(c.id),style:{cursor:"pointer",color:G.acL,textDecoration:"underline",textDecorationColor:G.acBd}},
+                c.prenom?h('span',null,h('span',{style:{fontWeight:700}},c.nom)," ",h('span',{style:{fontWeight:400,color:G.dim}},c.prenom)):c.nom
+              )
             ),
             h('td',{style:tbd()},h('span',{onClick:()=>setDet(c.id),style:{padding:"2px 7px",background:G.acBg,border:`1px solid ${G.acBd}`,borderRadius:"6px",color:G.acL,fontSize:"11px",cursor:"pointer"}},"🧾 "+c.nc)),
             h('td',{style:tbd({color:c.tot>0?G.te:"#333",fontWeight:c.tot>0?600:400})},c.tot>0?c.tot.toLocaleString()+" GMD":"—"),
