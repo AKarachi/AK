@@ -1428,7 +1428,7 @@ function Pros({db,setDb,T}){
     setNp(p=>{
       const mt={...p.magTypes};
       if(mt[magId]) delete mt[magId];
-      else mt[magId]={truck:true,container:false};
+      else mt[magId]={truck:false,container:false};
       return{...p,magTypes:mt};
     });
   }
@@ -1451,8 +1451,9 @@ function Pros({db,setDb,T}){
 
   function save(){
     if(!np.nom.trim())return T("Nom requis",true);
-    const selectedMags=Object.keys(np.magTypes).filter(k=>np.magTypes[k].truck||np.magTypes[k].container).map(Number);
-    if(!selectedMags.length)return T("Cochez au moins un magasin avec un type",true);
+    // Un magasin coché (entry existe) suffit, même sans TRUCK ni CONTAINER
+    const selectedMags=Object.keys(np.magTypes).map(Number);
+    if(!selectedMags.length)return T("Cochez au moins un magasin",true);
     const nomUp=np.nom.trim().toUpperCase();
     const approv=buildApprovsFromMagTypes(np.magTypes);
 
