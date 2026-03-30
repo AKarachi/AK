@@ -1405,15 +1405,22 @@ function Pros({db,setDb,T}){
   const [ev,setEv]=useState("");
 
   function initMagTypes(prod){
-    // Build magTypes from existing product's magasins + approvisionnements
     const mt={};
-    (prod.magasins||[]).forEach(mid=>{
-      const approvs=(prod.approvisionnements||[]).filter(a=>a.magasinId===mid);
+    // Rassembler tous les magasins concernés (depuis magasins ET approvisionnements)
+    const magIds=new Set();
+    (prod.magasins||[]).forEach(mid=>magIds.add(Number(mid)));
+    (prod.approvisionnements||[]).forEach(a=>{ if(a.magasinId!=null) magIds.add(Number(a.magasinId)); });
+    magIds.forEach(mid=>{
+      const approvs=(prod.approvisionnements||[]).filter(a=>Number(a.magasinId)===mid);
       mt[mid]={
         truck:approvs.some(a=>a.type==="TRUCK"),
         container:approvs.some(a=>a.type==="CONTAINER")
       };
     });
+    // Si aucun magasin trouvé, cocher tous les magasins connus
+    if(Object.keys(mt).length===0){
+      magasins.forEach(m=>{ mt[m.id]={truck:false,container:false}; });
+    }
     return mt;
   }
 
