@@ -361,7 +361,18 @@ function Home({db,setTab}){
     ),
     h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
       h('div',{style:{fontSize:"11px",color:G.mut}},`${rows.length} commande(s)`),
-      h('button',{onClick:()=>setTab("cmd"),style:btn(G.ac,"#fff")},"+ Nouvelle commande")
+      h('div',{style:{display:"flex",gap:"8px"}},
+        h(PrintBtn,{label:"Imprimer",onClick:()=>{
+          const titre=hf?"Commandes filtrées":"Toutes les commandes";
+          const cmdRows=rows.map(c=>{
+            const prods=c.montantDirect?"⚡ Rapide":c.lignes.map(l=>pN(produits,l.produitId)+" ×"+l.qty).join("<br>");
+            return `<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${cN(clients,c.clientId)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td>${prods}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`;
+          }).join("");
+          const total=rows.reduce((s,c)=>s+tCmd(c),0);
+          printSection(titre,`<h2>${titre} (${rows.length})</h2><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Magasin</th><th>Produits</th><th>Montant</th></tr></thead><tbody>${cmdRows}</tbody><tfoot><tr><td colspan="5" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${total.toLocaleString()} GMD</td></tr></tfoot></table>`);
+        }}),
+        h('button',{onClick:()=>setTab("cmd"),style:btn(G.ac,"#fff")},"+ Nouvelle commande")
+      )
     ),
     commandes.length===0?h(EmptyState,{icon:"🧾",msg:"Aucune commande — créez d'abord des magasins, produits et clients"}):
     rows.length===0?h('div',{style:card({padding:"30px",textAlign:"center",color:G.mut,fontSize:"12px"})},"Aucun résultat"):
