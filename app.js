@@ -674,8 +674,7 @@ function Cmds({db,setDb,T,setTab}){
                   c.montantDirect
                     ?h('span',{style:{fontSize:"10px",color:G.am,background:G.am+"15",border:`1px solid ${G.am}33`,padding:"2px 7px",borderRadius:"10px"}},"⚡ Commande rapide")
                     :[
-                      ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId))),
-                      c.lignes.length>2?h('span',{key:"more",style:{fontSize:"10px",color:G.mut}},`+${c.lignes.length-2}`):null
+                      ...c.lignes.map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"2px"}},pN(produits,l.produitId)))
                     ]
                 ),
                 h('td',{style:tbd({color:tot>0?G.te:"#333",fontWeight:tot>0?700:400,whiteSpace:"nowrap"})},tot>0?tot.toLocaleString()+" GMD":"—"),
@@ -1101,8 +1100,7 @@ function Mags({db,setDb,T}){
               h('td',{style:tbd({whiteSpace:"nowrap"})},h(EditableDate,{value:c.date,onChange:v=>setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}))})),
               h('td',{style:tbd({fontWeight:500})},cN(clients,c.clientId)),
               h('td',{style:tbd()},
-                ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId)+" ×"+l.qty)),
-                c.lignes.length>2?h('span',{style:{fontSize:"10px",color:G.mut}},`+${c.lignes.length-2}`):null
+                ...c.lignes.map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"2px"}},pN(produits,l.produitId)+" ×"+l.qty))
               ),
               h('td',{style:tbd({color:tCmd(c)>0?G.te:"#333",fontWeight:tCmd(c)>0?600:400})},tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—")
             )),
@@ -1287,8 +1285,7 @@ function Clis({db,setDb,T}){
               h('td',{style:tbd({whiteSpace:"nowrap"})},h(EditableDate,{value:c.date,onChange:v=>setDb(p=>({...p,commandes:p.commandes.map(x=>x.id===c.id?{...x,date:v}:x)}))})),
               h('td',{style:tbd()},h(Tag,{label:"🏪 "+mN(magasins,c.magasinId)})),
               h('td',{style:tbd()},
-                ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId)+" ×"+l.qty)),
-                c.lignes.length>2?h('span',{style:{fontSize:"10px",color:G.mut}},`+${c.lignes.length-2}`):null
+                ...c.lignes.map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"2px"}},pN(produits,l.produitId)+" ×"+l.qty))
               ),
               h('td',{style:tbd({color:tCmd(c)>0?G.te:"#333",fontWeight:700})},tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—")
             )),
