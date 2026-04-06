@@ -438,9 +438,12 @@ function Cmds({db,setDb,T,setTab}){
   function updQ(pid,v){setNc(prev=>({...prev,lignes:prev.lignes.map(l=>{if(l.produitId!==pid)return l;const q=Number(v)||1;const pr=l.up||0;return{...l,qty:q,amount:q&&pr?q*pr:l.amount};})}));}
 
   function doPrint(liste,titre){
-    const rows=liste.map(c=>`<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${cN(clients,c.clientId)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`).join("");
+    const rows=liste.map(c=>{
+      const prods=c.montantDirect?"⚡ Rapide":c.lignes.map(l=>pN(produits,l.produitId)+" ×"+l.qty).join("<br>");
+      return `<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${cN(clients,c.clientId)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td>${prods}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`;
+    }).join("");
     const total=liste.reduce((s,c)=>s+tCmd(c),0);
-    printSection(titre,`<h2>${titre} (${liste.length})</h2><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Magasin/Type</th><th>Montant</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${total.toLocaleString()} GMD</td></tr></tfoot></table>`);
+    printSection(titre,`<h2>${titre} (${liste.length})</h2><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Magasin</th><th>Produits</th><th>Montant</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="5" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${total.toLocaleString()} GMD</td></tr></tfoot></table>`);
   }
 
   const magProds=mag?produits.filter(p=>(p.magasins||[]).includes(mag.id)):[];
