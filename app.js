@@ -14,7 +14,7 @@ function fmtDate(d){
   if(!m)return d;
   return `${m[3]}/${m[2]}/${m[1]}`;
 }
-// Dette client = total commandes - total paiements
+// Solde client = total commandes - total paiements
 function calcDette(client,commandes){
   const totalCmds=commandes.filter(c=>c.clientId===client.id).reduce((s,c)=>s+tCmd(c),0);
   const totalPaie=(client.paiements||[]).reduce((s,p)=>s+(p.montant||0),0);
@@ -60,10 +60,10 @@ function printSection(title, contentHtml){
     <title>A.M.T. Enterprise — ${title}</title>
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
-      body { font-family: Arial, sans-serif; font-size: 12px; color: #000; background:#fff; padding: 20px; }
+      body { font-family: Calibri, Arial, sans-serif; font-size: 12px; color: #000; background:#fff; padding: 20px; }
       .header { display:block; padding-bottom:14px; border-bottom:2.5px solid #000; margin-bottom:16px; }
       .header img { height:90px; width:auto; max-width:600px; object-fit:contain; display:block; transform:none; }
-      .header-info .name { font-family: Arial Black, sans-serif; font-weight:900; font-size:24px; }
+      .header-info .name { font-family: Calibri, Arial Black, sans-serif; font-weight:900; font-size:24px; }
       .header-info .sub { font-size:11px; color:#333; margin-top:3px; }
       h2 { font-size:15px; margin-bottom:10px; border-bottom:1px solid #ccc; padding-bottom:5px; }
       table { width:100%; border-collapse:collapse; font-size:11px; }
@@ -322,7 +322,7 @@ function Home({db,setTab}){
     {icon:"🏪",l:"Magasins",v:magasins.length,c:"#a78bfa"},
     {icon:"📦",l:"Produits",v:produits.length,c:"#7c6fcd"},
     {icon:"💰",l:"Total ventes",v:totalAmt>0?totalAmt.toLocaleString()+" GMD":"—",c:G.te},
-    {icon:"⚠️",l:"Dettes clients",v:totalDette>0?totalDette.toLocaleString()+" GMD":"✓ 0",c:totalDette>0?G.re:G.gr},
+    {icon:"⚠️",l:"Soldes clients",v:totalDette>0?totalDette.toLocaleString()+" GMD":"✓ 0",c:totalDette>0?G.re:G.gr},
   ];
   const hf=search||fM||fCl||fBL||fA||fB;
   const rowTotal=rows.reduce((s,c)=>s+tCmd(c),0);
@@ -1229,7 +1229,7 @@ function Clis({db,setDb,T}){
               <table style="width:auto;margin-bottom:14px">
                 <tr><th>Total commandes</th><td style="text-align:right">${totalCmds.toLocaleString()} GMD</td></tr>
                 <tr><th>Total payé</th><td style="text-align:right">${totalPaie.toLocaleString()} GMD</td></tr>
-                <tr><th>Dette</th><td style="text-align:right;color:${detteColor};font-weight:700">${dette===0?"✓ Soldé":dette.toLocaleString()+" GMD"}</td></tr>
+                <tr><th>Solde</th><td style="text-align:right;color:${detteColor};font-weight:700">${dette===0?"✓ Soldé":dette.toLocaleString()+" GMD"}</td></tr>
               </table>
               <h2>Commandes (${cmds.length})</h2>
               <table><thead><tr><th>#</th><th>Date</th><th>Magasin</th><th>Montant</th></tr></thead><tbody>${cmdRows}</tbody></table>
@@ -1277,7 +1277,7 @@ function Clis({db,setDb,T}){
           h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.gr}},totalPaie>0?totalPaie.toLocaleString()+" GMD":"—")
         ),
         h('div',{style:{...card({padding:"14px 16px"}),border:`1px solid ${dette>0?G.re+"55":dette<0?G.gr+"55":G.b1}`}},
-          h('div',{style:{fontSize:"10px",color:G.mut,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}},"💸 Dette"),
+          h('div',{style:{fontSize:"10px",color:G.mut,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}},"💸 Solde"),
           h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:dette>0?G.re:dette<0?G.gr:G.dim}},
             dette===0?"✓ Soldé":dette.toLocaleString()+" GMD"
           ),
@@ -1347,7 +1347,7 @@ function Clis({db,setDb,T}){
         h(PrintBtn,{label:"Imprimer liste",onClick:()=>{
           const rows=stats.map(c=>`<tr><td>${cLabel(c)}</td><td style="text-align:center">${c.nc}</td><td style="text-align:right">${c.tot>0?c.tot.toLocaleString()+" GMD":"—"}</td><td style="text-align:right;color:${c.dette>0?"#c00":c.dette<0?"#090":"#999"};font-weight:${c.dette!==0?700:400}">${c.dette===0?"✓ Soldé":c.dette.toLocaleString()+" GMD"}</td></tr>`).join("");
           const totalDette=stats.reduce((s,c)=>s+Math.max(0,c.dette),0);
-          printSection("Liste des clients",`<h2>Clients (${stats.length})</h2><table><thead><tr><th>Nom</th><th>Commandes</th><th>Total achats</th><th>Dette</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total dettes</td><td style="font-weight:700;color:#c00">${totalDette>0?totalDette.toLocaleString()+" GMD":"✓ 0"}</td></tr></tfoot></table>`);
+          printSection("Liste des clients",`<h2>Clients (${stats.length})</h2><table><thead><tr><th>Nom</th><th>Commandes</th><th>Total achats</th><th>Solde</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total soldes</td><td style="font-weight:700;color:#c00">${totalDette>0?totalDette.toLocaleString()+" GMD":"✓ 0"}</td></tr></tfoot></table>`);
         }}),
         h('button',{onClick:()=>setForm(v=>!v),style:btn(G.ac,"#fff")},"+ Ajouter")
       )
@@ -1368,7 +1368,7 @@ function Clis({db,setDb,T}){
     h('div',{style:card({overflow:"hidden"})},
       h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
         h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
-          ["Nom","Commandes","Total","💸 Dette","Actions"].map(x=>h('th',{key:x,style:tbh},x))
+          ["Nom","Commandes","Total","💸 Solde","Actions"].map(x=>h('th',{key:x,style:tbh},x))
         )),
         h('tbody',null,
           ...stats.map((c,i)=>h('tr',{key:c.id,className:"trh",style:{borderBottom:"1px solid #141420",background:i%2===0?"transparent":"rgba(255,255,255,.01)"}},
