@@ -382,10 +382,9 @@ function Home({db,setTab}){
                 h('td',{style:tbd()},
                   c.montantDirect
                     ?h('span',{style:{fontSize:"10px",color:G.am,background:G.am+"15",border:`1px solid ${G.am}33`,padding:"2px 7px",borderRadius:"10px"}},"⚡ Rapide")
-                    :[
-                      ...c.lignes.slice(0,2).map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px",marginRight:"3px"}},pN(produits,l.produitId)+" ×"+l.qty)),
-                      c.lignes.length>2?h('span',{key:"m",style:{fontSize:"10px",color:G.mut}},`+${c.lignes.length-2}`):null
-                    ]
+                    :h('div',{style:{display:"flex",flexDirection:"column",gap:"2px"}},
+                      ...c.lignes.map((l,j)=>h('span',{key:j,style:{fontSize:"10px",color:G.dim,background:G.d2,padding:"2px 5px",borderRadius:"3px"}},pN(produits,l.produitId)+" ×"+l.qty))
+                    )
                 ),
                 h('td',{style:tbd({color:tot>0?G.te:"#333",fontWeight:tot>0?700:400,whiteSpace:"nowrap"})},tot>0?tot.toLocaleString()+" GMD":"—"),
                 h('td',{style:tbd({color:G.ac,fontSize:"11px"})},"→")
