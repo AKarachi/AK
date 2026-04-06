@@ -47,9 +47,69 @@ function CompanyHeader(){
   );
 }
 
-function PrintBtn({onClick,label}){
-  return h('button',{onClick,style:{cursor:"pointer",border:"none",fontFamily:"inherit",background:"#1a1a26",color:"#888",padding:"5px 12px",borderRadius:"6px",fontSize:"11px",display:"inline-flex",alignItems:"center",gap:"5px"}},
-    "🖨 "+(label||"Imprimer")
+// ── EXPORT EXCEL ─────────────────────────────────────────────────────────────
+// columns: [{key, label, checked}]
+// data: [{col.key: valeur, ...}]
+function exportXLSX(filename, columns, data){
+  const cols = columns.filter(c=>c.checked);
+  const header = cols.map(c=>c.label);
+  const rows = data.map(row=>cols.map(c=>row[c.key]??''));
+  const ws = XLSX.utils.aoa_to_sheet([header,...rows]);
+  // Largeur auto
+  ws['!cols'] = cols.map(c=>({wch:Math.max(c.label.length, ...rows.map(r=>(r[cols.indexOf(c)]||'').toString().length), 10)+2}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Export');
+  XLSX.writeFile(wb, filename+'.xlsx');
+}
+
+// Modale de sélection de colonnes
+function ExportModal({title, filename, columns, data, onClose}){
+  const [cols, setCols] = useState(columns.map(c=>({...c, checked: c.checked!==false})));
+  const toggle = key => setCols(prev=>prev.map(c=>c.key===key?{...c,checked:!c.checked}:c));
+  const allChecked = cols.every(c=>c.checked);
+  const toggleAll = ()=>setCols(prev=>prev.map(c=>({...c,checked:!allChecked})));
+
+  return h('div',{style:{position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999},onClick:onClose},
+    h('div',{style:{background:'#1a1a26',border:'1px solid #2a2a3a',borderRadius:'12px',padding:'24px',minWidth:'320px',maxWidth:'480px',width:'90%'},onClick:e=>e.stopPropagation()},
+      h('div',{style:{fontFamily:'Calibri,Syne,sans-serif',fontWeight:800,fontSize:'15px',marginBottom:'4px',color:'#e2e0db'}},'📊 Exporter en Excel'),
+      h('div',{style:{fontSize:'11px',color:'#666',marginBottom:'16px'}},title),
+      // Tout cocher
+      h('label',{style:{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',marginBottom:'12px',paddingBottom:'10px',borderBottom:'1px solid #2a2a3a',fontSize:'12px',color:'#aaa'}},
+        h('input',{type:'checkbox',checked:allChecked,onChange:toggleAll,style:{width:'14px',height:'14px',accentColor:'#5b5bf6'}}),
+        'Tout sélectionner'
+      ),
+      // Colonnes
+      h('div',{style:{display:'flex',flexDirection:'column',gap:'8px',marginBottom:'20px'}},
+        ...cols.map(c=>h('label',{key:c.key,style:{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',fontSize:'13px',color:'#e2e0db'}},
+          h('input',{type:'checkbox',checked:c.checked,onChange:()=>toggle(c.key),style:{width:'14px',height:'14px',accentColor:'#5b5bf6'}}),
+          c.label
+        ))
+      ),
+      h('div',{style:{display:'flex',gap:'8px',justifyContent:'flex-end'}},
+        h('button',{onClick:onClose,style:{background:'none',color:'#666',border:'1px solid #2a2a3a',padding:'8px 16px',borderRadius:'7px',cursor:'pointer',fontSize:'12px',fontFamily:'inherit'}},'Annuler'),
+        h('button',{
+          onClick:()=>{
+            const checked=cols.filter(c=>c.checked);
+            if(!checked.length)return;
+            exportXLSX(filename, cols, data);
+            onClose();
+          },
+          style:{background:'#5b5bf6',color:'#fff',border:'none',padding:'8px 18px',borderRadius:'7px',cursor:'pointer',fontSize:'12px',fontFamily:'inherit',fontWeight:700}
+        },'⬇ Télécharger .xlsx')
+      )
+    )
+  );
+}
+
+// Composant bouton qui ouvre la modale
+function PrintBtn({columns, data, filename, label, title}){
+  const [open, setOpen] = useState(false);
+  return h(Fragment,null,
+    h('button',{
+      onClick:()=>setOpen(true),
+      style:{cursor:'pointer',border:'none',fontFamily:'inherit',background:'#1a1a26',color:'#888',padding:'5px 12px',borderRadius:'6px',fontSize:'11px',display:'inline-flex',alignItems:'center',gap:'5px'}
+    },'📊 '+(label||'Exporter')),
+    open?h(ExportModal,{title:title||label||'Export',filename:filename||'export',columns,data,onClose:()=>setOpen(false)}):null
   );
 }
 
@@ -362,15 +422,27 @@ function Home({db,setTab}){
     h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
       h('div',{style:{fontSize:"11px",color:G.mut}},`${rows.length} commande(s)`),
       h('div',{style:{display:"flex",gap:"8px"}},
-        h(PrintBtn,{label:"Imprimer",onClick:()=>{
-          const titre=hf?"Commandes filtrées":"Toutes les commandes";
-          const cmdRows=rows.map(c=>{
-            const prods=c.montantDirect?"⚡ Rapide":c.lignes.map(l=>pN(produits,l.produitId)+" ×"+l.qty).join("<br>");
-            return `<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${cN(clients,c.clientId)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td>${prods}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`;
-          }).join("");
-          const total=rows.reduce((s,c)=>s+tCmd(c),0);
-          printSection(titre,`<h2>${titre} (${rows.length})</h2><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Magasin</th><th>Produits</th><th>Montant</th></tr></thead><tbody>${cmdRows}</tbody><tfoot><tr><td colspan="5" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${total.toLocaleString()} GMD</td></tr></tfoot></table>`);
-        }}),
+        h(PrintBtn,{
+          label:"Exporter",
+          filename:hf?"commandes_filtrees":"toutes_commandes",
+          title:hf?"Commandes filtrées":"Toutes les commandes",
+          columns:[
+            {key:"num",label:"N°"},
+            {key:"date",label:"Date"},
+            {key:"client",label:"Client"},
+            {key:"magasin",label:"Magasin"},
+            {key:"produits",label:"Produits"},
+            {key:"montant",label:"Montant (GMD)"}
+          ],
+          data:rows.map(c=>({
+            num:"#"+c.id,
+            date:fmtDate(c.date),
+            client:cN(clients,c.clientId),
+            magasin:mN(magasins,c.magasinId)||"—",
+            produits:c.montantDirect?"⚡ Rapide":c.lignes.map(l=>pN(produits,l.produitId)+" ×"+l.qty).join(" | "),
+            montant:tCmd(c)>0?tCmd(c):"—"
+          }))
+        }),
         h('button',{onClick:()=>setTab("cmd"),style:btn(G.ac,"#fff")},"+ Nouvelle commande")
       )
     ),
@@ -448,14 +520,7 @@ function Cmds({db,setDb,T,setTab}){
   function updL(pid,f,v){setNc(prev=>({...prev,lignes:prev.lignes.map(l=>{if(l.produitId!==pid)return l;const upd={...l,[f]:f==="dnote"?(v||null):(v?Number(v):null)};if(f==="up"||f==="qty"){const q=f==="qty"?Number(v)||1:l.qty;const pr=f==="up"?Number(v)||0:l.up||0;upd.amount=q&&pr?q*pr:upd.amount;}return upd;})}))}
   function updQ(pid,v){setNc(prev=>({...prev,lignes:prev.lignes.map(l=>{if(l.produitId!==pid)return l;const q=Number(v)||1;const pr=l.up||0;return{...l,qty:q,amount:q&&pr?q*pr:l.amount};})}));}
 
-  function doPrint(liste,titre){
-    const rows=liste.map(c=>{
-      const prods=c.montantDirect?"⚡ Rapide":c.lignes.map(l=>pN(produits,l.produitId)+" ×"+l.qty).join("<br>");
-      return `<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${cN(clients,c.clientId)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td>${prods}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`;
-    }).join("");
-    const total=liste.reduce((s,c)=>s+tCmd(c),0);
-    printSection(titre,`<h2>${titre} (${liste.length})</h2><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Magasin</th><th>Produits</th><th>Montant</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="5" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${total.toLocaleString()} GMD</td></tr></tfoot></table>`);
-  }
+  // doPrint remplacé par PrintBtn avec export Excel
 
   const magProds=mag?produits.filter(p=>(p.magasins||[]).includes(mag.id)):[];
   const fPros=magProds.filter(p=>p.nom.toLowerCase().includes(sPro.toLowerCase()));
@@ -486,15 +551,25 @@ function Cmds({db,setDb,T,setTab}){
         ),
         h('div',{style:{display:"flex",gap:"8px",alignItems:"center"}},
           tot>0?h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.te}},tot.toLocaleString()+" GMD"):null,
-          h(PrintBtn,{onClick:()=>{
-            const rows=c.lignes.map(l=>`<tr><td>${pN(produits,l.produitId)||"—"}</td><td>${l.qty||"—"}</td><td>${l.up?l.up.toLocaleString()+" GMD":"—"}</td><td style="text-align:right">${l.amount?l.amount.toLocaleString()+" GMD":"—"}</td><td>${l.dnote||""}</td></tr>`).join("");
-            printSection(`Commande #${c.id}`,`
-              <h2>Commande #${c.id} — ${fmtDate(c.date)}</h2>
-              <table style="width:auto;margin-bottom:12px"><tr><th>Client</th><td>${cN(clients,c.clientId)}</td></tr><tr><th>Magasin</th><td>${mN(magasins,c.magasinId)||"—"}</td></tr></table>
-              <table><thead><tr><th>Produit</th><th>Qté</th><th>Prix</th><th>Montant</th><th>Note</th></tr></thead>
-              <tbody>${rows}</tbody>
-              <tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700;text-align:right">${tot.toLocaleString()} GMD</td><td></td></tr></tfoot></table>`);
-          }})
+          h(PrintBtn,{
+            label:"Exporter",
+            filename:`commande_${c.id}`,
+            title:`Commande #${c.id} — ${fmtDate(c.date)}`,
+            columns:[
+              {key:"produit",label:"Produit"},
+              {key:"qty",label:"Quantité"},
+              {key:"prix",label:"Prix unitaire (GMD)"},
+              {key:"montant",label:"Montant (GMD)"},
+              {key:"note",label:"Note"}
+            ],
+            data:c.lignes.map(l=>({
+              produit:pN(produits,l.produitId)||"—",
+              qty:l.qty||"—",
+              prix:l.up||"—",
+              montant:l.amount||"—",
+              note:l.dnote||""
+            }))
+          })
         )
       ),
       h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"16px"}},
@@ -645,11 +720,25 @@ function Cmds({db,setDb,T,setTab}){
       ),
       /* Bouton imprimer contextuel */
       h(PrintBtn,{
-        label:vue==="rapides"?"🖨 Rapides":vue==="detailles"?"🖨 Détaillées":"🖨 Toutes",
-        onClick:()=>doPrint(
-          listeVue,
-          vue==="rapides"?"Commandes Rapides":vue==="detailles"?"Commandes Détaillées":"Toutes les Commandes"
-        )
+        label:"Exporter",
+        filename:vue==="rapides"?"commandes_rapides":vue==="detailles"?"commandes_detaillees":"toutes_commandes",
+        title:vue==="rapides"?"Commandes Rapides":vue==="detailles"?"Commandes Détaillées":"Toutes les Commandes",
+        columns:[
+          {key:"num",label:"N°"},
+          {key:"date",label:"Date"},
+          {key:"client",label:"Client"},
+          {key:"magasin",label:"Magasin"},
+          {key:"produits",label:"Produits"},
+          {key:"montant",label:"Montant (GMD)"}
+        ],
+        data:listeVue.map(c=>({
+          num:"#"+c.id,
+          date:fmtDate(c.date),
+          client:cN(clients,c.clientId),
+          magasin:mN(magasins,c.magasinId)||"—",
+          produits:c.montantDirect?"⚡ Rapide":c.lignes.map(l=>pN(produits,l.produitId)+" ×"+l.qty).join(" | "),
+          montant:tCmd(c)>0?tCmd(c):"—"
+        }))
       })
     ):null,
 
@@ -935,10 +1024,25 @@ function Mags({db,setDb,T}){
           h('div',{style:{fontSize:"10px",color:G.acL,textTransform:"uppercase",fontWeight:600}},"📊 Stock actuel"),
           h('div',{style:{display:"flex",gap:"8px",alignItems:"center"}},
             h('div',{style:{fontSize:"10px",color:G.mut}},"Initial − Vendu − Sortant + Entrant = Disponible"),
-            h(PrintBtn,{label:"Imprimer",onClick:()=>{
-              const rows=stInfo(mag).map(p=>`<tr><td>${p.nom}</td><td style="text-align:center">${p.ini}</td><td style="text-align:center;color:#e67">${p.sold>0?"-"+p.sold:"0"}</td><td style="text-align:center">${p.sortant>0?"↑ "+p.sortant:""}${p.entrant>0?" ↓ "+p.entrant:""}</td><td style="text-align:center;font-weight:700;color:${p.av<=0?"#c00":p.av/p.ini<0.25?"#e67":"#090"}">${p.av}</td></tr>`).join("");
-              printSection(`Stock — ${mag.nom}`,`<h2>Stock actuel — ${mag.nom}</h2><table><thead><tr><th>Produit</th><th>Initial</th><th>Vendu</th><th>Transferts</th><th>Disponible</th></tr></thead><tbody>${rows}</tbody></table>`);
-            }})
+            h(PrintBtn,{
+              label:"Exporter",
+              filename:`stock_${mag?mag.nom.replace(/\s+/g,"_"):""}`,
+              title:`Stock — ${mag?mag.nom:""}`,
+              columns:[
+                {key:"produit",label:"Produit"},
+                {key:"initial",label:"Initial"},
+                {key:"vendu",label:"Vendu"},
+                {key:"transferts",label:"Transferts"},
+                {key:"disponible",label:"Disponible"}
+              ],
+              data:stInfo(mag).map(p=>({
+                produit:p.nom,
+                initial:p.ini,
+                vendu:p.sold>0?-p.sold:0,
+                transferts:(p.sortant>0?"↑"+p.sortant:"")+(p.entrant>0?" ↓"+p.entrant:""),
+                disponible:p.av
+              }))
+            })
           )
         ),
         stInfo(mag).length===0?h('div',{style:{padding:"25px",textAlign:"center",color:"#333",fontSize:"12px"}},"Aucun stock."):
@@ -978,11 +1082,23 @@ function Mags({db,setDb,T}){
         h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"7px"}},
           h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px"}},"📦 Approvisionnements ("+magApprovHist.length+")"),
           h('div',{style:{display:"flex",gap:"6px"}},
-            magApprovHist.length>0?h(PrintBtn,{label:"Imprimer",onClick:()=>{
-              const rows=[...magApprovHist].sort((a,b)=>b.date.localeCompare(a.date)).map(a=>`<tr><td>${fmtDate(a.date)}</td><td>${a.produitNom}</td><td style="text-align:center;color:#090;font-weight:700">+ ${a.qty}</td><td>${a.type}</td></tr>`).join("");
-              const total=[...magApprovHist].reduce((s,a)=>s+a.qty,0);
-              printSection(`Approvisionnements — ${mag.nom}`,`<h2>Historique approvisionnements — ${mag.nom}</h2><table><thead><tr><th>Date</th><th>Produit</th><th>Quantité</th><th>Type</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="text-align:right;font-weight:700">Total reçu</td><td style="font-weight:700;color:#090">+ ${total}</td><td></td></tr></tfoot></table>`);
-            }}):null,
+            magApprovHist.length>0?h(PrintBtn,{
+              label:"Exporter",
+              filename:`approv_${mag?mag.nom.replace(/\s+/g,"_"):""}`,
+              title:`Approvisionnements — ${mag?mag.nom:""}`,
+              columns:[
+                {key:"date",label:"Date"},
+                {key:"produit",label:"Produit"},
+                {key:"qty",label:"Quantité"},
+                {key:"type",label:"Type"}
+              ],
+              data:[...magApprovHist].sort((a,b)=>b.date.localeCompare(a.date)).map(a=>({
+                date:fmtDate(a.date),
+                produit:a.produitNom,
+                qty:a.qty,
+                type:a.type
+              }))
+            }):null,
             h('button',{onClick:()=>setShowHistApprov(v=>!v),style:{fontSize:"11px",color:G.acL,background:G.acBg,border:`1px solid ${G.acBd}`,padding:"3px 10px",borderRadius:"5px",cursor:"pointer"}},showHistApprov?"▲ Masquer":"▼ Voir")
           )
         ),
@@ -1025,10 +1141,21 @@ function Mags({db,setDb,T}){
       magStockLogs.length>0?h('div',{style:{marginBottom:"12px"}},
         h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"7px"}},
           h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px"}},"📋 Modifications manuelles ("+magStockLogs.length+")"),
-          h(PrintBtn,{label:"Imprimer",onClick:()=>{
-            const rows=[...magStockLogs].sort((a,b)=>b.date.localeCompare(a.date)).flatMap(log=>log.changes.map(ch=>{const diff=ch.apres-ch.avant;return `<tr><td>${fmtDate(log.date)}</td><td>${ch.produitNom}</td><td style="text-align:center;font-weight:700;color:${diff<0?"#c00":"#090"}">${diff>0?"+":""}${diff}</td><td>${log.note||""}</td></tr>`;})).join("");
-            printSection(`Modifications stock — ${mag.nom}`,`<h2>Modifications manuelles — ${mag.nom}</h2><table><thead><tr><th>Date</th><th>Produit</th><th>Variation</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>`);
-          }})
+          h(PrintBtn,{
+            label:"Exporter",
+            filename:`modif_stock_${mag?mag.nom.replace(/\s+/g,"_"):""}`,
+            title:`Modifications stock — ${mag?mag.nom:""}`,
+            columns:[
+              {key:"date",label:"Date"},
+              {key:"produit",label:"Produit"},
+              {key:"variation",label:"Variation"},
+              {key:"note",label:"Note"}
+            ],
+            data:[...magStockLogs].sort((a,b)=>b.date.localeCompare(a.date)).flatMap(log=>log.changes.map(ch=>{
+              const diff=ch.apres-ch.avant;
+              return {date:fmtDate(log.date),produit:ch.produitNom,variation:(diff>0?"+":"")+diff,note:log.note||""};
+            }))
+          })
         ),
         h('div',{style:card({overflow:"hidden"})},
           h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
@@ -1219,23 +1346,23 @@ function Clis({db,setDb,T}){
           h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${cmds.length} commande(s) · ${paiements.length} paiement(s)`)
         ),
         h('div',{style:{display:"flex",gap:"8px"}},
-          h(PrintBtn,{onClick:()=>{
-            const cmdRows=cmds.map(c=>`<tr><td>#${c.id}</td><td>${fmtDate(c.date)}</td><td>${mN(magasins,c.magasinId)||"—"}</td><td style="text-align:right">${tCmd(c)>0?tCmd(c).toLocaleString()+" GMD":"—"}</td></tr>`).join("");
-            const paieRows=paiements.map(p=>`<tr><td>${fmtDate(p.date)}</td><td style="text-align:right;color:#090">${p.montant.toLocaleString()} GMD</td><td>${p.type||"cash"}</td></tr>`).join("");
-            const detteColor=dette>0?"#c00":dette<0?"#090":"#999";
-            const fullName=cLabel(cl);
-            printSection(`Profil — ${fullName}`,`
-              <h2>${fullName}</h2>
-              <table style="width:auto;margin-bottom:14px">
-                <tr><th>Total commandes</th><td style="text-align:right">${totalCmds.toLocaleString()} GMD</td></tr>
-                <tr><th>Total payé</th><td style="text-align:right">${totalPaie.toLocaleString()} GMD</td></tr>
-                <tr><th>Solde</th><td style="text-align:right;color:${detteColor};font-weight:700">${dette===0?"✓ Soldé":dette.toLocaleString()+" GMD"}</td></tr>
-              </table>
-              <h2>Commandes (${cmds.length})</h2>
-              <table><thead><tr><th>#</th><th>Date</th><th>Magasin</th><th>Montant</th></tr></thead><tbody>${cmdRows}</tbody></table>
-              <h2 style="margin-top:14px">Paiements (${paiements.length})</h2>
-              <table><thead><tr><th>Date</th><th>Montant</th><th>Type</th></tr></thead><tbody>${paieRows}</tbody></table>`);
-          }}),
+          h(PrintBtn,{
+            label:"Exporter",
+            filename:`client_${cLabel(cl).replace(/\s+/g,"_")}`,
+            title:`Profil — ${cLabel(cl)}`,
+            columns:[
+              {key:"num",label:"N° Commande"},
+              {key:"date",label:"Date"},
+              {key:"magasin",label:"Magasin"},
+              {key:"montant",label:"Montant (GMD)"}
+            ],
+            data:cmds.map(c=>({
+              num:"#"+c.id,
+              date:fmtDate(c.date),
+              magasin:mN(magasins,c.magasinId)||"—",
+              montant:tCmd(c)>0?tCmd(c):"—"
+            }))
+          }),
           h('button',{onClick:()=>setEditPaie(v=>!v),style:btn(G.gr,"#fff",{fontSize:"13px"})},"+ Ajouter un paiement")
         )
       ),
@@ -1344,11 +1471,23 @@ function Clis({db,setDb,T}){
         h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${clients.length} client(s)`)
       ),
       h('div',{style:{display:"flex",gap:"8px"}},
-        h(PrintBtn,{label:"Imprimer liste",onClick:()=>{
-          const rows=stats.map(c=>`<tr><td>${cLabel(c)}</td><td style="text-align:center">${c.nc}</td><td style="text-align:right">${c.tot>0?c.tot.toLocaleString()+" GMD":"—"}</td><td style="text-align:right;color:${c.dette>0?"#c00":c.dette<0?"#090":"#999"};font-weight:${c.dette!==0?700:400}">${c.dette===0?"✓ Soldé":c.dette.toLocaleString()+" GMD"}</td></tr>`).join("");
-          const totalDette=stats.reduce((s,c)=>s+Math.max(0,c.dette),0);
-          printSection("Liste des clients",`<h2>Clients (${stats.length})</h2><table><thead><tr><th>Nom</th><th>Commandes</th><th>Total achats</th><th>Solde</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total soldes</td><td style="font-weight:700;color:#c00">${totalDette>0?totalDette.toLocaleString()+" GMD":"✓ 0"}</td></tr></tfoot></table>`);
-        }}),
+        h(PrintBtn,{
+          label:"Exporter liste",
+          filename:"liste_clients",
+          title:"Liste des clients",
+          columns:[
+            {key:"nom",label:"Nom"},
+            {key:"commandes",label:"Commandes"},
+            {key:"total",label:"Total achats (GMD)"},
+            {key:"solde",label:"Solde (GMD)"}
+          ],
+          data:stats.map(c=>({
+            nom:cLabel(c),
+            commandes:c.nc,
+            total:c.tot>0?c.tot:"—",
+            solde:c.dette===0?"✓ Soldé":c.dette
+          }))
+        }),
         h('button',{onClick:()=>setForm(v=>!v),style:btn(G.ac,"#fff")},"+ Ajouter")
       )
     ),
