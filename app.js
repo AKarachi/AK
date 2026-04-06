@@ -218,7 +218,7 @@ function App(){
   return h('div',{style:{height:"100vh",display:"flex",overflow:"hidden"}},
     h('div',{style:{width:"195px",background:"#0d0d14",borderRight:`1px solid ${G.b2}`,display:"flex",flexDirection:"column",padding:"18px 0",flexShrink:0}},
       h('div',{style:{padding:"0 15px 16px",borderBottom:`1px solid ${G.b2}`}},
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"14px",color:"#fff"}},"SALES.DB"),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"14px",color:"#fff"}},"SALES.DB"),
         h('div',{style:{fontSize:"9px",color:"#2a2a3a",letterSpacing:"1px",marginTop:"2px"}},"GESTION DES VENTES")
       ),
       h('nav',{style:{padding:"10px 8px",flex:1}},
@@ -271,7 +271,7 @@ function Home({db,setTab}){
       h('button',{onClick:()=>setDet(null),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",fontSize:"13px",marginBottom:"18px"}},"← Accueil"),
       h('div',{style:{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:"10px",marginBottom:"18px"}},
         h('div',null,
-          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},`Commande #${c.id}`),
+          h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"20px"}},`Commande #${c.id}`),
           h('div',{style:{display:"flex",alignItems:"center",gap:"8px",marginTop:"5px"}},
             h('span',{style:{color:G.mut,fontSize:"11px"}},"📅 Date :"),
             h('input',{type:"date",value:c.date,
@@ -280,7 +280,7 @@ function Home({db,setTab}){
             })
           )
         ),
-        tot>0?h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.te}},tot.toLocaleString()+" GMD"):null
+        tot>0?h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.te}},tot.toLocaleString()+" GMD"):null
       ),
       h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:c.bl?"10px":"16px"}},
         h('div',{style:card({padding:"12px 14px"})},h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase",marginBottom:"5px"}},"Client"),h('div',{style:{fontWeight:600}},cN(clients,c.clientId))),
@@ -328,13 +328,13 @@ function Home({db,setTab}){
   const rowTotal=rows.reduce((s,c)=>s+tCmd(c),0);
 
   return h('div',{className:"fu"},
-    h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"22px",marginBottom:"4px"}},"Tableau de bord"),
+    h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"22px",marginBottom:"4px"}},"Tableau de bord"),
     h('div',{style:{color:G.mut,fontSize:"12px",marginBottom:"18px"}},"Vue d'ensemble"),
     h('div',{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:"10px",marginBottom:"20px"}},
       ...stats.map((s,i)=>h('div',{key:i,style:card({padding:"12px 14px"})},
         h('div',{style:{fontSize:"18px",marginBottom:"4px"}},s.icon),
         h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"2px"}},s.l),
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"16px",color:s.c}},s.v)
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"16px",color:s.c}},s.v)
       ))
     ),
     h('div',{style:card({padding:"13px 15px",marginBottom:"13px"})},
@@ -475,7 +475,7 @@ function Cmds({db,setDb,T,setTab}){
       h('button',{onClick:()=>setDet(null),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",fontSize:"13px",marginBottom:"18px"}},"← Retour"),
       h('div',{style:{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:"10px",marginBottom:"18px"}},
         h('div',null,
-          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},`Commande #${c.id}`),
+          h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"20px"}},`Commande #${c.id}`),
           h('div',{style:{display:"flex",alignItems:"center",gap:"8px",marginTop:"5px"}},
             h('span',{style:{color:G.mut,fontSize:"11px"}},"📅 Date :"),
             h('input',{type:"date",value:c.date,
@@ -485,7 +485,7 @@ function Cmds({db,setDb,T,setTab}){
           )
         ),
         h('div',{style:{display:"flex",gap:"8px",alignItems:"center"}},
-          tot>0?h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.te}},tot.toLocaleString()+" GMD"):null,
+          tot>0?h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.te}},tot.toLocaleString()+" GMD"):null,
           h(PrintBtn,{onClick:()=>{
             const rows=c.lignes.map(l=>`<tr><td>${pN(produits,l.produitId)||"—"}</td><td>${l.qty||"—"}</td><td>${l.up?l.up.toLocaleString()+" GMD":"—"}</td><td style="text-align:right">${l.amount?l.amount.toLocaleString()+" GMD":"—"}</td><td>${l.dnote||""}</td></tr>`).join("");
             printSection(`Commande #${c.id}`,`
@@ -521,7 +521,7 @@ function Cmds({db,setDb,T,setTab}){
     /* ── Header ── */
     h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"16px",flexWrap:"wrap",gap:"10px"}},
       h('div',null,
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},"Commandes"),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"20px"}},"Commandes"),
         h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${commandes.length} commande(s)`)
       ),
       h('button',{
@@ -549,7 +549,7 @@ function Cmds({db,setDb,T,setTab}){
 
       /* Formulaire Rapide */
       form==="rapide"?h('div',null,
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},"⚡ NOUVELLE COMMANDE RAPIDE"),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},"⚡ NOUVELLE COMMANDE RAPIDE"),
         !clients.length?h('div',{style:{color:G.re,fontSize:"12px"}},"⚠ ",h('button',{onClick:()=>setTab("cli"),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",textDecoration:"underline",fontSize:"12px"}},"Créer un client →")):
         h('div',null,
           h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
@@ -568,7 +568,7 @@ function Cmds({db,setDb,T,setTab}){
 
       /* Formulaire Détaillé */
       form==="detail"?h('div',null,
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:"#b0a0ff",marginBottom:"12px"}},"📦 NOUVELLE COMMANDE DÉTAILLÉE"),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",color:"#b0a0ff",marginBottom:"12px"}},"📦 NOUVELLE COMMANDE DÉTAILLÉE"),
         !clients.length?h('div',{style:{color:G.re,fontSize:"12px"}},"⚠ ",h('button',{onClick:()=>setTab("cli"),style:{color:G.acL,background:"none",border:"none",cursor:"pointer",textDecoration:"underline",fontSize:"12px"}},"Créer un client →")):
         h('div',null,
           h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"14px"}},
@@ -809,7 +809,7 @@ function Mags({db,setDb,T}){
     // Sidebar liste magasins
     h('div',{style:{width:"205px",flexShrink:0}},
       h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"}},
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px"}},"Magasins"),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"18px"}},"Magasins"),
         h('button',{onClick:()=>setAddF(v=>!v),style:btn(G.ac,"#fff",{padding:"5px 11px",fontSize:"12px"})}," + ")
       ),
       addF?h('div',{className:"fu",style:{...card({padding:"10px 11px",marginBottom:"9px"}),border:`1px solid ${G.ac}`}},
@@ -846,14 +846,14 @@ function Mags({db,setDb,T}){
       // Summary card
       h('div',{style:card({padding:"14px 16px",marginBottom:"12px"})},
         h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
-          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"17px"}},"🏪 "+mag.nom),
+          h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"17px"}},"🏪 "+mag.nom),
           h('button',{onClick:startE,style:btn(G.ac,"#fff",{padding:"5px 12px",fontSize:"12px"})},"✏ Modifier stock")
         ),
         h('div',{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"7px"}},
           ...[["Produits",magProds.length],["Commandes",magCmds.length],["Approv.",magApprovHist.length],["Clients",new Set(magCmds.map(c=>c.clientId)).size]].map(([l,v])=>
             h('div',{key:l,style:{background:G.d2,borderRadius:"7px",padding:"8px 11px"}},
               h('div',{style:{fontSize:"9px",color:G.mut,textTransform:"uppercase",marginBottom:"2px"}},l),
-              h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"15px"}},v)
+              h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"15px"}},v)
             )
           )
         )
@@ -861,7 +861,7 @@ function Mags({db,setDb,T}){
 
       // Approv form
       showApprov?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"12px"}),border:`1px solid ${G.gr}55`}},
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.gr,marginBottom:"12px"}},"📦 Nouvel approvisionnement — "+mag.nom),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.gr,marginBottom:"12px"}},"📦 Nouvel approvisionnement — "+mag.nom),
         h('div',{style:{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:"9px",marginBottom:"10px"}},
           h(Lbl,{label:"Produit"},
             h(Sel,{value:ap.produitId,onChange:e=>setAp(x=>({...x,produitId:e.target.value}))},
@@ -886,7 +886,7 @@ function Mags({db,setDb,T}){
 
       // Transfert form
       showTransfert?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"12px"}),border:`1px solid ${G.acBd}`}},
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},"↔ Transfert de stock — "+mag.nom),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},"↔ Transfert de stock — "+mag.nom),
         h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"9px",marginBottom:"10px"}},
           h(Lbl,{label:"Produit"},
             h(Sel,{value:tr.produitId,onChange:e=>setTr(x=>({...x,produitId:e.target.value}))},
@@ -911,7 +911,7 @@ function Mags({db,setDb,T}){
 
       // Stock edit form
       editSt?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"12px"}),border:`1px solid ${G.ac}`}},
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"3px"}},"Stock initial — "+mag.nom),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"3px"}},"Stock initial — "+mag.nom),
         h('div',{style:{color:G.mut,fontSize:"11px",marginBottom:"12px"}},"Modifiez les quantités — un log sera créé automatiquement"),
         magProds.length===0?h('div',{style:{color:G.mut,fontSize:"12px"}},"Aucun produit dans ce magasin."):
         h('div',{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:"7px",marginBottom:"12px"}},
@@ -976,7 +976,7 @@ function Mags({db,setDb,T}){
       // Historique approvisionnements
       h('div',{style:{marginBottom:"12px"}},
         h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"7px"}},
-          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px"}},"📦 Approvisionnements ("+magApprovHist.length+")"),
+          h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px"}},"📦 Approvisionnements ("+magApprovHist.length+")"),
           h('div',{style:{display:"flex",gap:"6px"}},
             magApprovHist.length>0?h(PrintBtn,{label:"Imprimer",onClick:()=>{
               const rows=[...magApprovHist].sort((a,b)=>b.date.localeCompare(a.date)).map(a=>`<tr><td>${fmtDate(a.date)}</td><td>${a.produitNom}</td><td style="text-align:center;color:#090;font-weight:700">+ ${a.qty}</td><td>${a.type}</td></tr>`).join("");
@@ -1024,7 +1024,7 @@ function Mags({db,setDb,T}){
       // Logs de modification manuelle du stock
       magStockLogs.length>0?h('div',{style:{marginBottom:"12px"}},
         h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"7px"}},
-          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px"}},"📋 Modifications manuelles ("+magStockLogs.length+")"),
+          h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px"}},"📋 Modifications manuelles ("+magStockLogs.length+")"),
           h(PrintBtn,{label:"Imprimer",onClick:()=>{
             const rows=[...magStockLogs].sort((a,b)=>b.date.localeCompare(a.date)).flatMap(log=>log.changes.map(ch=>{const diff=ch.apres-ch.avant;return `<tr><td>${fmtDate(log.date)}</td><td>${ch.produitNom}</td><td style="text-align:center;font-weight:700;color:${diff<0?"#c00":"#090"}">${diff>0?"+":""}${diff}</td><td>${log.note||""}</td></tr>`;})).join("");
             printSection(`Modifications stock — ${mag.nom}`,`<h2>Modifications manuelles — ${mag.nom}</h2><table><thead><tr><th>Date</th><th>Produit</th><th>Variation</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>`);
@@ -1075,7 +1075,7 @@ function Mags({db,setDb,T}){
 
       // Historique transferts
       magTr.length>0?h('div',{style:{marginBottom:"12px"}},
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",marginBottom:"7px"}},"↔ Transferts ("+magTr.length+")"),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",marginBottom:"7px"}},"↔ Transferts ("+magTr.length+")"),
         h('div',{style:card({overflow:"hidden"})},
           h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
             h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
@@ -1101,7 +1101,7 @@ function Mags({db,setDb,T}){
         )
       ):null,
 
-      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",marginBottom:"7px"}},`Commandes (${magCmds.length})`),
+      h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",marginBottom:"7px"}},`Commandes (${magCmds.length})`),
       h('div',{style:card({overflow:"hidden"})},
         h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
           h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
@@ -1180,7 +1180,7 @@ function Clis({db,setDb,T}){
                     }
                     if(e.key==="Escape")setEditNom(false);
                   },
-                  style:{background:"#1a1a26",border:"1px solid #5b5bf6",color:"#e2e0db",padding:"6px 10px",borderRadius:"6px",fontSize:"18px",fontFamily:"Syne,sans-serif",fontWeight:800,width:"240px",outline:"none"}
+                  style:{background:"#1a1a26",border:"1px solid #5b5bf6",color:"#e2e0db",padding:"6px 10px",borderRadius:"6px",fontSize:"18px",fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,width:"240px",outline:"none"}
                 }),
                 h('button',{onClick:()=>{
                   if(newNom.trim()){setDb(p=>({...p,clients:p.clients.map(c=>c.id===det?{...c,nom:newNom.trim().toUpperCase()}:c)}));T("Nom modifié ✓");}
@@ -1189,7 +1189,7 @@ function Clis({db,setDb,T}){
                 h('button',{onClick:()=>setEditNom(false),style:{cursor:"pointer",background:"none",color:"#888",border:"1px solid #1e1e2e",padding:"6px 10px",borderRadius:"6px",fontSize:"13px",fontFamily:"inherit"}},"✕")
               )
             :h('div',{style:{display:"flex",alignItems:"center",gap:"10px",marginBottom:"4px"}},
-                h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"22px"}},cl.nom),
+                h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"22px"}},cl.nom),
                 h('button',{onClick:()=>{setNewNom(cl.nom);setEditNom(true);setEditPrenom(false);},style:{cursor:"pointer",background:"#2a2a3a",color:"#888",border:"none",padding:"4px 10px",borderRadius:"5px",fontSize:"12px",fontFamily:"inherit"}},"✏ Nom")
               ),
           editPrenom
@@ -1242,7 +1242,7 @@ function Clis({db,setDb,T}){
 
       // Formulaire paiement
       editPaie?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"16px"}),border:`1px solid ${G.gr}`}},
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.gr,marginBottom:"12px"}},"💳 Nouveau paiement"),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.gr,marginBottom:"12px"}},"💳 Nouveau paiement"),
         h('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"9px",marginBottom:"10px"}},
           h(Lbl,{label:"Date"},h(Inp,{type:"date",value:newPaie.date||new Date().toISOString().slice(0,10),onChange:e=>setNewPaie(s=>({...s,date:e.target.value}))})),
           h(Lbl,{label:"Montant (GMD)"},h(Inp,{type:"number",placeholder:"0",value:newPaie.montant||"",onChange:e=>setNewPaie(s=>({...s,montant:e.target.value}))})),
@@ -1270,15 +1270,15 @@ function Clis({db,setDb,T}){
       h('div',{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px",marginBottom:"18px"}},
         h('div',{style:card({padding:"14px 16px"})},
           h('div',{style:{fontSize:"10px",color:G.mut,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}},"Total commandes"),
-          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.te}},totalCmds>0?totalCmds.toLocaleString()+" GMD":"—")
+          h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.te}},totalCmds>0?totalCmds.toLocaleString()+" GMD":"—")
         ),
         h('div',{style:card({padding:"14px 16px"})},
           h('div',{style:{fontSize:"10px",color:G.mut,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}},"Total payé"),
-          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.gr}},totalPaie>0?totalPaie.toLocaleString()+" GMD":"—")
+          h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"18px",color:G.gr}},totalPaie>0?totalPaie.toLocaleString()+" GMD":"—")
         ),
         h('div',{style:{...card({padding:"14px 16px"}),border:`1px solid ${dette>0?G.re+"55":dette<0?G.gr+"55":G.b1}`}},
           h('div',{style:{fontSize:"10px",color:G.mut,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}},"💸 Solde"),
-          h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"18px",color:dette>0?G.re:dette<0?G.gr:G.dim}},
+          h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"18px",color:dette>0?G.re:dette<0?G.gr:G.dim}},
             dette===0?"✓ Soldé":dette.toLocaleString()+" GMD"
           ),
           null
@@ -1286,7 +1286,7 @@ function Clis({db,setDb,T}){
       ),
 
       // Commandes
-      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.txt,marginBottom:"8px"}},"🧾 Commandes"),
+      h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.txt,marginBottom:"8px"}},"🧾 Commandes"),
       h('div',{style:{...card({overflow:"hidden"}),marginBottom:"16px"}},
         h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
           h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
@@ -1309,7 +1309,7 @@ function Clis({db,setDb,T}){
       ),
 
       // Paiements
-      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.txt,marginBottom:"8px"}},"💳 Paiements reçus"),
+      h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.txt,marginBottom:"8px"}},"💳 Paiements reçus"),
       h('div',{style:card({overflow:"hidden"})},
         h('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:"12px"}},
           h('thead',null,h('tr',{style:{borderBottom:`1px solid ${G.b2}`,background:G.d2}},
@@ -1340,7 +1340,7 @@ function Clis({db,setDb,T}){
   return h('div',{className:"fu"},
     h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"16px",flexWrap:"wrap",gap:"9px"}},
       h('div',null,
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},"Clients"),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"20px"}},"Clients"),
         h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${clients.length} client(s)`)
       ),
       h('div',{style:{display:"flex",gap:"8px"}},
@@ -1513,7 +1513,7 @@ function Pros({db,setDb,T}){
   return h('div',{className:"fu"},
     h('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"16px",flexWrap:"wrap",gap:"9px"}},
       h('div',null,
-        h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"20px"}},"Produits"),
+        h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"20px"}},"Produits"),
         h('div',{style:{color:G.mut,fontSize:"12px",marginTop:"2px"}},`${produits.length} produit(s)`)
       ),
       h('button',{onClick:openAdd,style:btn(G.ac,"#fff")},"+ Ajouter")
@@ -1521,7 +1521,7 @@ function Pros({db,setDb,T}){
 
     // Form (add or edit)
     showForm?h('div',{className:"fu",style:{...card({padding:"14px 16px",marginBottom:"14px"}),border:`1px solid ${G.ac}`}},
-      h('div',{style:{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},formTitle),
+      h('div',{style:{fontFamily:"Calibri,Syne,sans-serif",fontWeight:800,fontSize:"13px",color:G.acL,marginBottom:"12px"}},formTitle),
       h(Lbl,{label:"Nom du produit *",style:{marginBottom:"14px"}},
         h(Inp,{value:np.nom,onChange:e=>setNp(p=>({...p,nom:e.target.value})),placeholder:"Ex: RICE 50KG"})
       ),
